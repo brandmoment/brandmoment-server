@@ -1,0 +1,48 @@
+type: metrics_view
+title: Campaign Performance
+model: session_events_model
+timeseries: event_time
+
+dimensions:
+  - name: brand_org_id
+    label: Brand
+    column: brand_org_id
+  - name: campaign_id
+    label: Campaign
+    column: campaign_id
+  - name: creative_id
+    label: Creative
+    column: creative_id
+  - name: country
+    label: Country
+    column: country
+  - name: platform
+    label: Platform
+    column: platform
+  - name: event_type
+    label: Event Type
+    column: event_type
+
+measures:
+  - name: total_deliveries
+    label: Deliveries
+    expression: COUNT(*) FILTER (WHERE event_type = 'impression')
+  - name: click_through_rate
+    label: CTR
+    expression: "CAST(COUNT(*) FILTER (WHERE event_type = 'click') AS DOUBLE) / NULLIF(COUNT(*) FILTER (WHERE event_type = 'impression'), 0)"
+    format_preset: percentage
+  - name: completion_rate
+    label: Completion Rate
+    expression: "CAST(COUNT(*) FILTER (WHERE event_type = 'complete') AS DOUBLE) / NULLIF(COUNT(*) FILTER (WHERE event_type = 'impression'), 0)"
+    format_preset: percentage
+  - name: total_spend
+    label: Total Spend
+    expression: SUM(revenue)
+    format_preset: currency_usd
+  - name: cost_per_click
+    label: CPC
+    expression: "SUM(revenue) / NULLIF(COUNT(*) FILTER (WHERE event_type = 'click'), 0)"
+    format_preset: currency_usd
+  - name: avg_view_duration
+    label: Avg View Duration (s)
+    expression: "AVG(duration_ms) / 1000.0"

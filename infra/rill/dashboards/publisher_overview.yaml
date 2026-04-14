@@ -1,0 +1,47 @@
+type: metrics_view
+title: Publisher Overview
+model: session_events_model
+timeseries: event_time
+
+dimensions:
+  - name: publisher_org_id
+    label: Publisher
+    column: publisher_org_id
+  - name: app_bundle_id
+    label: App
+    column: app_bundle_id
+  - name: platform
+    label: Platform
+    column: platform
+  - name: event_type
+    label: Event Type
+    column: event_type
+  - name: country
+    label: Country
+    column: country
+
+measures:
+  - name: total_impressions
+    label: Impressions
+    expression: COUNT(*) FILTER (WHERE event_type = 'impression')
+  - name: total_clicks
+    label: Clicks
+    expression: COUNT(*) FILTER (WHERE event_type = 'click')
+  - name: total_completes
+    label: Completes
+    expression: COUNT(*) FILTER (WHERE event_type = 'complete')
+  - name: fill_rate
+    label: Fill Rate
+    expression: "CAST(COUNT(*) FILTER (WHERE event_type = 'impression') AS DOUBLE) / NULLIF(COUNT(DISTINCT session_id), 0)"
+    format_preset: percentage
+  - name: total_revenue
+    label: Revenue
+    expression: SUM(revenue)
+    format_preset: currency_usd
+  - name: rpm
+    label: RPM
+    expression: "SUM(revenue) / NULLIF(COUNT(*) FILTER (WHERE event_type = 'impression'), 0) * 1000"
+    format_preset: currency_usd
+  - name: avg_duration
+    label: Avg Duration (s)
+    expression: "AVG(duration_ms) / 1000.0"
