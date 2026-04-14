@@ -122,8 +122,9 @@ brandmoment-server/
 | Data fetching | **TanStack Query + TanStack Table** |
 | Auth | **BetterAuth** (self-hosted в Next.js) + JWT для Go API |
 | OLTP DB | **Postgres** (через `sqlc` + `pgx`) |
-| Analytics store | **S3/R2 + Parquet**, читается через **DuckDB** внутри Rill |
-| Embedded BI | **Rill Developer** (Docker self-host) |
+| Analytics store | **S3/R2 + Parquet**, читается через **DuckDB** (Go API) |
+| Analytics charts | **Recharts / Tremor** в Next.js (кастомный UI для publishers/brands) |
+| Internal BI | **Rill Developer** (Docker self-host, для внутренней аналитики, не user-facing) |
 | Observability | **OpenTelemetry** (traces/metrics/logs) → бэкенд TBD (Jaeger/Tempo или Grafana Cloud) |
 | Migrations | **golang-migrate** |
 | API contract | **OpenAPI 3.1** (source of truth) |
@@ -313,10 +314,12 @@ GET    /v1/embeds/rill/signed-url?view=publisher|brand&org_id=...
 
 ## 17. Next Steps (suggested)
 
-1. Скелет monorepo: `turbo.json`, `pnpm-workspace.yaml`, `go.work`, `infra/docker/docker-compose.yml` (postgres, minio, rill, otel-collector, jaeger).
-2. `packages/proto/dashboard.yaml` — OpenAPI 3.1 первая версия (orgs, users, publisher-apps).
-3. `services/api-dashboard/` — health endpoint, otel wiring, pg connection, первая миграция (identity/tenancy).
-4. `apps/dashboard/` — Next.js 15 skeleton + BetterAuth setup + shadcn/ui.
-5. JWT validation bridge: BetterAuth JWKS → Go middleware.
-6. Rill Docker + seed data generator + первый dashboard view + подписанный embed.
-7. CRUD для publisher-apps + api-keys → первый E2E "signup → create app → get key".
+1. ~~Скелет monorepo: `turbo.json`, `pnpm-workspace.yaml`, `go.work`, `infra/docker/docker-compose.yml`~~ ✅ DONE
+2. ~~Rill Docker + seed data generator (50k events Parquet) + publisher/campaign dashboards~~ ✅ DONE
+3. `packages/proto/dashboard.yaml` — OpenAPI 3.1 первая версия (orgs, users, publisher-apps).
+4. `services/api-dashboard/` — health endpoint, otel wiring, pg connection, первая миграция (identity/tenancy).
+5. `apps/dashboard/` — Next.js 15 skeleton + BetterAuth setup + shadcn/ui.
+6. JWT validation bridge: BetterAuth JWKS → Go middleware.
+7. Go API: DuckDB-агрегации из Parquet → REST endpoints для графиков (publisher metrics, campaign performance).
+8. Next.js: кастомные графики (Recharts/Tremor) для publishers/brands.
+9. CRUD для publisher-apps + api-keys → первый E2E "signup → create app → get key".
