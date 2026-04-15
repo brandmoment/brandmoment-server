@@ -1,0 +1,14 @@
+## Боевая задача (один промпт)
+
+Создай CRUD для Organizations в сервисе api-dashboard.
+
+Что нужно:
+- SQL миграция: таблица organizations (id, type, name, slug, created_at, updated_at)
+- Endpoints: POST /api/v1/organizations, GET /api/v1/organizations/:id, GET /api/v1/organizations
+- Все слои: handler → service → repository
+- Auth middleware: JWT validation + извлечение org_id из контекста
+- Фильтрация по org_id во всех запросах
+- Стандартный response format (data/error envelope)
+- OTel tracing на уровне service
+- Structured logging (slog)
+- go.mod с зависимостями
