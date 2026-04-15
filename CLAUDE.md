@@ -41,14 +41,14 @@ brandmoment-server/
 
 Before generating code, verify required tools are installed:
 
-| Tool | Check command | Required for |
-|------|---------------|-------------|
-| Go 1.23+ | `go version` | Backend services |
-| sqlc | `sqlc version` | DB query codegen |
-| golang-migrate | `migrate -version` | DB migrations |
-| Docker | `docker --version` | Infra (Postgres, MinIO, Rill, OTel) |
-| pnpm 9.15+ | `pnpm --version` | Frontend, monorepo |
-| Node 20+ | `node --version` | Frontend |
+| Tool           | Check command      | Required for                        |
+|----------------|--------------------|-------------------------------------|
+| Go 1.23+       | `go version`       | Backend services                    |
+| sqlc           | `sqlc version`     | DB query codegen                    |
+| golang-migrate | `migrate -version` | DB migrations                       |
+| Docker         | `docker --version` | Infra (Postgres, MinIO, Rill, OTel) |
+| pnpm 9.15+     | `pnpm --version`   | Frontend, monorepo                  |
+| Node 20+       | `node --version`   | Frontend                            |
 
 If any tool is missing — **stop and report** which tools need to be installed. Suggest install commands (e.g. `brew install go`). Do NOT proceed with code generation without required tools.
 
@@ -169,6 +169,24 @@ Use `/ast-index` skill for fast codebase navigation:
 
 Prefer `/ast-index` over manual Grep/Glob when searching for symbols, types, or architectural patterns.
 
+### Plugins (project scope)
+
+Managed in `.claude/settings.json`. Enable/disable as needed:
+
+| Plugin               | Status   | Purpose                          |
+|----------------------|----------|----------------------------------|
+| gopls-lsp            | enabled  | Go LSP — diagnostics, completion |
+| typescript-lsp       | disabled | TS LSP — enable for frontend     |
+| frontend-design      | disabled | `/frontend-design` — quality UI  |
+| playwright           | disabled | Playwright E2E test generation   |
+
+Enable: `claude plugin enable <name>`. Disable unused plugins to save context tokens.
+
+### Playwright CLI
+
+Custom skill in `.claude/skills/playwright-cli/`. References for E2E testing:
+test generation, element attributes, video recording, tracing, request mocking, session management.
+
 ### JetBrains MCP
 
 Project is developed in JetBrains IDE. Use MCP tools when available:
@@ -184,6 +202,7 @@ Project is developed in JetBrains IDE. Use MCP tools when available:
 | `/simplify`        | After large generation — find duplication, improve quality |
 | `/security-review` | After auth/multi-tenancy changes — verify isolation        |
 | `/review`          | Before merging PR — catch bugs                             |
+| `/frontend-design` | Building dashboard UI — enable plugin first                |
 
 ## Detailed Rules
 
