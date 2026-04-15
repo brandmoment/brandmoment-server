@@ -1,0 +1,90 @@
+package repository
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/brandmoment/brandmoment-server/packages/shared-domain/db"
+	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
+)
+
+type OrganizationRepository interface {
+	Insert(ctx context.Context, org *model.Organization) (*model.Organization, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*model.Organization, error)
+	ListByIDs(ctx context.Context, ids []uuid.UUID) ([]model.Organization, error)
+}
+
+type organizationRepo struct {
+	q *db.Queries
+}
+
+func NewOrganizationRepository(pool *pgxpool.Pool) OrganizationRepository {
+	return &organizationRepo{q: db.New(pool)}
+}
+
+func (r *organizationRepo) Insert(ctx context.Context, org *model.Organization) (*model.Organization, error) {
+	row, err := r.q.InsertOrganization(ctx, db.InsertOrganizationParams{
+		ID:        uuidToPgtype(org.ID),
+		Type:      org.Type,
+		Name:      org.Name,
+		Slug:      org.Slug,
+		CreatedAt: pgtype.Timestamptz{Time: org.CreatedAt, Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: org.UpdatedAt, Valid: true},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("insert organization: %w", err)
+	}
+	return toOrganization(row), nil
+}
+
+func (r *organizationRepo) GetByID(ctx context.Context, id uuid.UUID) (*model.Organization, error) {
+	row, err := r.q.GetOrganizationByID(ctx, uuidToPgtype(id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, model.ErrNotFound
+		}
+		return nil, fmt.Errorf("get organization: %w", err)
+	}
+	return toOrganization(row), nil
+}
+
+func (r *organizationRepo) ListByIDs(ctx context.Context, ids []uuid.UUID) ([]model.Organization, error) {
+	pgIDs := make([]pgtype.UUID, len(ids))
+	for i, id := range ids {
+		pgIDs[i] = uuidToPgtype(id)
+	}
+	rows, err := r.q.ListOrganizationsByIDs(ctx, pgIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list organizations: %w", err)
+	}
+	orgs := make([]model.Organization, len(rows))
+	for i, row := range rows {
+		orgs[i] = *toOrganization(row)
+	}
+	return orgs, nil
+}
+
+func uuidToPgtype(id uuid.UUID) pgtype.UUID {
+	return pgtype.UUID{Bytes: id, Valid: true}
+}
+
+func pgtypeToUUID(id pgtype.UUID) uuid.UUID {
+	return uuid.UUID(id.Bytes)
+}
+
+func toOrganization(row db.Organization) *model.Organization {
+	return &model.Organization{
+		ID:        pgtypeToUUID(row.ID),
+		Type:      row.Type,
+		Name:      row.Name,
+		Slug:      row.Slug,
+		CreatedAt: row.CreatedAt.Time,
+		UpdatedAt: row.UpdatedAt.Time,
+	}
+}
