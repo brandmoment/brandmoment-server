@@ -81,7 +81,7 @@ CLAUDE.md                    ← 190 строк (компактное ядро)
 
 ---
 
-## Метрики
+## Метрики правил
 
 | Метрика | v1 | v2 |
 |---------|----|----|
@@ -93,3 +93,125 @@ CLAUDE.md                    ← 190 строк (компактное ядро)
 | Post-generation checks | 0 | 5 шагов |
 | Entity checklist | нет | 9 шагов |
 | Tools/Skills описано | 0 | 4 (RTK, ast-index, JetBrains, skills) |
+
+---
+
+## Сравнение результатов генерации #1 (v1) и #2 (v2)
+
+### Общая оценка
+
+| Критерий | Генерация #1 (v1) | Генерация #2 (v2) |
+|----------|--------------------|--------------------|
+| Скомпилировалось? | Нет (Go не установлен, go.sum отсутствует) | Да (`go build ./...` OK) |
+| Тесты? | 0 тестов | 9 тестов (3 table-driven), все прошли |
+| go vet? | Не проверено | OK |
+| Соответствует стилю? | ~70% | ~95% |
+
+### Pre-flight Checks
+
+| | v1 | v2 |
+|---|---|---|
+| Проверка инструментов | Нет. Обнаружил отсутствие Go только при попытке `go mod tidy` в конце | Да. Проверил `go`, `sqlc`, `migrate` в начале. Остановился, запросил `brew install` |
+| Результат | go.mod написан вручную "на глаз", без go.sum | go.mod + go.sum сгенерированы через `go mod tidy` |
+
+### Multi-Tenancy: Organizations
+
+| | v1 | v2 |
+|---|---|---|
+| org_id в запросах | `WHERE id = $1 AND id = $2` — слепо применил org_id к organizations | Нет org_id фильтра. Organizations — top-level ресурс |
+| Доступ к оргам | По org_id из JWT (одно поле) | Через `ListByIDs` + массив org_ids из JWT claims |
+| SQL | `WHERE id = $1` в ListByOrg — возвращает max 1 строку | `WHERE id = ANY(@ids::uuid[])` — корректный запрос |
+
+### Auth / JWT
+
+| | v1 | v2 |
+|---|---|---|
+| JWT парсинг | Ручной HMAC-SHA256 (`crypto/hmac` + `encoding/base64`) | `golang-jwt/jwt/v5` библиотека |
+| JWT claims | `{"org_id": "..."}` — одно поле | `{"orgs": [{"org_id": "...", "role": "..."}]}` — массив memberships |
+| X-Org-ID header | Не реализован | Извлекается, валидируется против JWT claims |
+| RBAC | Отсутствует | `RequireRole()` middleware, проверяет роль из claims |
+| Контекст | Только `OrgIDFromContext()` | `OrgIDFromContext()` + `RoleFromContext()` + `OrgIDsFromContext()` |
+
+### Repository
+
+| | v1 | v2 |
+|---|---|---|
+| SQL | Raw SQL через `pool.Exec` / `pool.Query` | sqlc-generated `db.Queries` |
+| sqlc config | Отсутствует | `packages/shared-domain/sqlc.yaml` |
+| Query files | Отсутствуют | `packages/shared-domain/queries/organizations.sql` |
+| sqlc generate | Не выполнялся | Выполнен, сгенерирован Go код |
+| Интерфейс | `GetByID(ctx, orgID, id)` | `GetByID(ctx, id)` — без org_id (корректно для organizations) |
+
+### Router
+
+| | v1 | v2 |
+|---|---|---|
+| Расположение | Inline в `cmd/server/main.go` | Отдельный `internal/router/router.go` |
+| RBAC на routes | Нет | `auth.RequireRole("viewer", "editor", "admin", "owner")` |
+| Структура | Роутинг смешан с DI и server setup | Чистый `NewRouter(h, auth) http.Handler` |
+
+### Response Helpers
+
+| | v1 | v2 |
+|---|---|---|
+| Расположение | `handler/response.go` | `httputil/response.go` (отдельный пакет) |
+| Дублирование | `writeAuthError()` в middleware — свой формат через `map[string]any` | Middleware импортирует `httputil.RespondError` — один источник |
+
+### Тесты
+
+| | v1 | v2 |
+|---|---|---|
+| Файлы тестов | 0 | 1 (`organization_test.go`) |
+| Количество тестов | 0 | 9 (5 Create + 2 GetByID + 2 ListByIDs) |
+| Паттерн | — | Table-driven, mock repository |
+| Naming | — | `TestOrganizationService_Create` (по конвенции) |
+
+### Tools & Skills использованные
+
+| | v1 | v2 |
+|---|---|---|
+| Agent (Explore) | 1 | 1 |
+| TaskCreate | 7 | 11 |
+| Write | 12 | 15 |
+| Bash | 6 | 14 (включая brew install, go mod tidy, go build, go test) |
+| Skills | 0 | 0 (рекомендованы как next step) |
+| sqlc generate | нет | да |
+| go build | нет | да — прошёл |
+| go vet | нет | да — прошёл |
+| go test | нет | да — 9 passed |
+
+### Файлы: v1 vs v2
+
+| Файл | v1 | v2 |
+|------|----|----|
+| `infra/migrations/*.sql` | 2 файла | 2 файла |
+| `packages/shared-domain/sqlc.yaml` | нет | да |
+| `packages/shared-domain/queries/organizations.sql` | нет | да |
+| `packages/shared-domain/db/*.go` | нет | да (sqlc-generated) |
+| `internal/model/organization.go` | да | да |
+| `internal/repository/organization.go` | raw SQL | wraps sqlc |
+| `internal/service/organization.go` | да | да |
+| `internal/service/organization_test.go` | нет | да (9 тестов) |
+| `internal/handler/organization.go` | да | да |
+| `internal/handler/response.go` | да | нет (перенесён в httputil) |
+| `internal/httputil/response.go` | нет | да |
+| `internal/handler/health.go` | да | да |
+| `internal/middleware/auth.go` | ручной HMAC | golang-jwt/jwt/v5 |
+| `internal/middleware/rbac.go` | нет | встроен в auth.go (RequireRole) |
+| `internal/router/router.go` | нет (inline в main) | да |
+| `internal/config/config.go` | да | да |
+| `cmd/server/main.go` | да (с router inline) | да (чистый, router вынесен) |
+| `go.mod` | без go.sum | + go.sum |
+
+---
+
+## Что больше всего повлияло на качество
+
+1. **Pre-flight checks** — заставили ассистента установить Go перед генерацией. Код скомпилировался.
+2. **"org_id filtering applies"** — явное правило когда фильтровать, когда нет. Исправлен критический баг с organizations.
+3. **JWT claims пример** — ассистент не придумывал свою структуру, использовал реальный формат с массивом memberships.
+4. **"NO custom JWT parsing"** — прямой запрет заставил использовать golang-jwt вместо ручного HMAC.
+5. **sqlc как обязательный** — вместо raw SQL в repository, сгенерирован type-safe код.
+6. **"Tests MUST"** — без этого правила тестов не было вообще. С ним — 9 table-driven тестов.
+7. **"Router MUST be in router.go"** — чистое разделение ответственности в main.go.
+8. **"NO duplicate response helpers"** — один `httputil` пакет вместо дублирования в middleware.
