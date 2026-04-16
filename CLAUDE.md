@@ -204,6 +204,245 @@ Project is developed in JetBrains IDE. Use MCP tools when available:
 | `/review`          | Before merging PR — catch bugs                             |
 | `/frontend-design` | Building dashboard UI — enable plugin first                |
 
+## Profile Selection (STRICT)
+
+Each request is processed within ONE profile. Profile is determined combinationally:
+
+1. **Auto-detect** by keywords/context:
+   - Bug, error, crash, not working, breaks, exception, stacktrace, 500, regression → **Bug Fix**
+   - How, what, where, why, explain, research, investigate, describe, find → **Research**
+   - Docs, document, update docs, sync docs, write docs, README → **Update Docs**
+2. **Confirmation** via `AskUserQuestion`: "Detected profile: **<name>**. Correct?"
+3. User can explicitly specify a profile — confirmation not required
+
+### Available Profiles
+
+| Profile | When to Use |
+|---------|-------------|
+| Bug Fix | Bug, regression, crash, unexpected behavior, broken endpoint |
+| Research | Codebase investigation, architecture question, coverage analysis |
+| Update Docs | Sync `docs/` with current code state, fill TODOs, add new sections |
+
+---
+
+## Profile: Bug Fix
+
+### Workflow (STRICT)
+
+```
+Reproduce → Diagnose → Fix → Validate → Report → Done
+```
+
+#### Allowed Transitions
+
+```
+Reproduce  → Diagnose
+Reproduce  → Report           (bug not reproducible — report with mark)
+Diagnose   → Fix
+Diagnose   → Reproduce        (need to reproduce differently)
+Diagnose   → Report           (diagnosis only, fix not required/possible)
+Fix        → Validate
+Fix        → Diagnose         (fix revealed different root cause)
+Validate   → Report           (all checks pass)
+Validate   → Fix              (fix doesn't work)
+Validate   → Diagnose         (root cause was different)
+Report     → Done
+```
+
+All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
+
+#### Stage Details
+
+**Reproduce:**
+1. Get bug description (from user, ticket, log)
+2. Determine affected service via `AskUserQuestion` if not obvious
+3. Attempt reproduction (run tests, curl endpoints, read logs)
+4. Document reproduction steps to `./reports/<slug>-reproduce.md`
+5. If NOT reproducible after 3 attempts — ask user for clarification or move to Report with "Not Reproduced" mark
+
+**Diagnose:**
+1. Read related code (handler → service → repository → SQL)
+2. Check recent git changes in affected area (`git log --oneline -20 -- <path>`)
+3. Use `/ast-index` to trace call chains and find usages
+4. Form root cause hypothesis
+5. If multiple hypotheses — present to user via `AskUserQuestion`
+
+**Fix:**
+1. Follow project conventions (`.claude/rules/`)
+2. Minimal change — fix the bug, do not refactor surrounding code
+3. If the fix touches auth/multi-tenancy — flag for security review
+
+**Validate:**
+
+| Stack | Checks |
+|-------|--------|
+| Go (`services/`, `packages/`) | `go build ./...` → `go vet ./...` → `go test ./...` |
+| TypeScript (`apps/dashboard/`) | `pnpm typecheck` → `pnpm lint` → `pnpm test` |
+| SQL (`infra/migrations/`) | `sqlc generate` — verify queries compile |
+| Auth/RBAC changes | `/security-review` |
+| All | `/simplify` — check for regressions and code quality |
+
+Validate CANNOT be skipped. If any check fails → back to Fix.
+
+**Report:**
+Save to `./reports/<slug>-bug-<YYYY-MM-DD>.md`:
+```
+# Bug Fix: <title>
+Date: <YYYY-MM-DD>
+Status: Fixed / Not Reproducible / Partially Fixed / Won't Fix
+
+## Problem
+<bug description>
+
+## Reproduction
+<steps or "not reproducible">
+
+## Root Cause
+<what was wrong and why>
+
+## Fix
+<what was changed — files, lines, logic>
+
+## Validation
+<which checks passed, test results>
+```
+
+---
+
+## Profile: Research
+
+### Workflow (STRICT)
+
+```
+Explore → Analyze → Report → Done
+```
+
+#### Allowed Transitions
+
+```
+Explore   → Analyze
+Explore   → Report            (question is trivial, answer found immediately)
+Analyze   → Explore           (need to investigate deeper)
+Analyze   → Report
+Report    → Done
+```
+
+All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
+
+#### Stage Details
+
+**Explore:**
+1. Identify scope of the question
+2. Use `/ast-index` for symbol search, project structure, module dependencies
+3. Read relevant files (handlers, services, repositories, migrations, configs)
+4. Trace data flow: HTTP request → handler → service → repository → SQL
+5. Check `docs/` for existing documentation on the topic
+
+**Analyze:**
+1. Synthesize findings into a structured answer
+2. Identify gaps, inconsistencies, or undocumented behavior
+3. If the question has multiple dimensions — break into sub-sections
+
+**CRITICAL: Research profile MUST NOT modify any code files.** Read-only investigation.
+
+**Report:**
+Save to `./reports/<slug>-research-<YYYY-MM-DD>.md`:
+```
+# Research: <question>
+Date: <YYYY-MM-DD>
+
+## Summary
+<1-3 sentence answer>
+
+## Findings
+
+### <Aspect 1>
+- Files: <paths>
+- How it works: <description>
+- Data flow: <trace>
+
+### <Aspect 2>
+...
+
+## Gaps / Issues Found
+<undocumented behavior, missing tests, potential bugs>
+
+## Related Files
+<list of key files with brief descriptions>
+```
+
+---
+
+## Profile: Update Docs
+
+### Workflow (STRICT)
+
+```
+Analyze Code → Plan Changes → Update Docs → Validate → Report → Done
+```
+
+#### Allowed Transitions
+
+```
+Analyze Code   → Plan Changes
+Plan Changes   → Update Docs
+Update Docs    → Validate
+Update Docs    → Analyze Code    (discovered undocumented area)
+Validate       → Report
+Validate       → Update Docs    (broken links, missing sections)
+Report         → Done
+```
+
+All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
+
+#### Stage Details
+
+**Analyze Code:**
+1. Read current code state (services, handlers, models, migrations)
+2. Read existing `docs/` content — identify stale or TODO sections
+3. Compare code vs docs — find gaps
+4. Use `/ast-index` for project structure overview
+
+**Plan Changes:**
+1. List docs sections to create or update
+2. Present plan to user via `AskUserQuestion`: "Found N sections to update: ... Proceed?"
+3. Prioritize: fill TODOs > update stale content > add new sections
+
+**Update Docs:**
+1. Follow existing docs style (Russian content, English headers, table navigation)
+2. Docs structure mirrors project structure:
+   - `docs/backend/` ↔ `services/api-dashboard/`, `services/api-sdk/`
+   - `docs/dashboard/` ↔ `apps/dashboard/`
+   - `docs/sdk/` ↔ SDK public API and protocol
+3. Update `docs/glossary.md` if new domain terms introduced
+4. Keep navigation links (`← К главной странице`) consistent
+
+**CRITICAL: Update Docs profile MUST NOT modify source code.** Only `docs/` files.
+
+**Validate:**
+1. All relative links in changed docs point to existing files
+2. New pages are referenced from parent README.md
+3. `docs/README.md` navigation table is up to date
+4. No orphan pages (every .md is reachable from README)
+
+**Report:**
+Save to `./reports/<slug>-docs-<YYYY-MM-DD>.md`:
+```
+# Docs Update: <scope>
+Date: <YYYY-MM-DD>
+
+## Changes
+- <file>: <what changed>
+
+## New Sections
+- <file>: <what was added>
+
+## Gaps Remaining
+- <TODOs still unfilled, areas not yet documented>
+```
+
+---
+
 ## Detailed Rules
 
 Go patterns, anti-patterns, and code examples are in `.claude/rules/` — loaded automatically by file glob.
