@@ -229,31 +229,31 @@ Agent definitions in `.claude/agents/`. Agents are launched via `Agent` tool wit
 
 **Builders (write code):**
 
-| Agent | File | Model | Role |
-|-------|------|-------|------|
-| go-builder | `.claude/agents/go-builder.md` | sonnet | Go services, handlers, repos — strict layering |
-| ts-builder | `.claude/agents/ts-builder.md` | sonnet | Next.js pages, components, hooks |
-| sql-builder | `.claude/agents/sql-builder.md` | sonnet | Migrations, sqlc queries |
+| Agent       | File                            | Model  | Role                                           |
+|-------------|---------------------------------|--------|------------------------------------------------|
+| go-builder  | `.claude/agents/go-builder.md`  | sonnet | Go services, handlers, repos — strict layering |
+| ts-builder  | `.claude/agents/ts-builder.md`  | sonnet | Next.js pages, components, hooks               |
+| sql-builder | `.claude/agents/sql-builder.md` | sonnet | Migrations, sqlc queries                       |
 
 **Experts (investigate, do NOT write code):**
 
-| Agent | File | Model | Role |
-|-------|------|-------|------|
-| go-diagnostics | `.claude/agents/go-diagnostics.md` | sonnet | Trace handler→service→repo→SQL, find root cause |
-| ts-diagnostics | `.claude/agents/ts-diagnostics.md` | sonnet | Trace page→component→hook→API, find root cause |
-| sql-analyzer | `.claude/agents/sql-analyzer.md` | sonnet | Schema, queries, indexing, multi-tenancy audit |
-| rill-analyzer | `.claude/agents/rill-analyzer.md` | sonnet | Rill dashboards, models, sources, metrics |
-| security-reviewer | `.claude/agents/security-reviewer.md` | sonnet | OWASP + multi-tenancy isolation audit |
-| git-investigator | `.claude/agents/git-investigator.md` | sonnet | Git history, blame, regression search |
-| docs-analyzer | `.claude/agents/docs-analyzer.md` | sonnet | Code vs docs comparison, gap detection |
-| refactor-go | `.claude/agents/refactor-go.md` | sonnet | Architecture violations, SOLID, layering |
+| Agent             | File                                  | Model  | Role                                            |
+|-------------------|---------------------------------------|--------|-------------------------------------------------|
+| go-diagnostics    | `.claude/agents/go-diagnostics.md`    | sonnet | Trace handler→service→repo→SQL, find root cause |
+| ts-diagnostics    | `.claude/agents/ts-diagnostics.md`    | sonnet | Trace page→component→hook→API, find root cause  |
+| sql-analyzer      | `.claude/agents/sql-analyzer.md`      | sonnet | Schema, queries, indexing, multi-tenancy audit  |
+| rill-analyzer     | `.claude/agents/rill-analyzer.md`     | sonnet | Rill dashboards, models, sources, metrics       |
+| security-reviewer | `.claude/agents/security-reviewer.md` | sonnet | OWASP + multi-tenancy isolation audit           |
+| git-investigator  | `.claude/agents/git-investigator.md`  | sonnet | Git history, blame, regression search           |
+| docs-analyzer     | `.claude/agents/docs-analyzer.md`     | sonnet | Code vs docs comparison, gap detection          |
+| refactor-go       | `.claude/agents/refactor-go.md`       | sonnet | Architecture violations, SOLID, layering        |
 
 **Utility:**
 
-| Agent | File | Model | Role |
-|-------|------|-------|------|
-| test-runner | `.claude/agents/test-runner.md` | sonnet | Run Go/TS/SQL checks, analyze failures |
-| report-writer | `.claude/agents/report-writer.md` | haiku | Write structured reports to ./reports/ |
+| Agent            | File                                 | Model  | Role                                   |
+|------------------|--------------------------------------|--------|----------------------------------------|
+| test-runner      | `.claude/agents/test-runner.md`      | sonnet | Run Go/TS/SQL checks, analyze failures |
+| report-writer    | `.claude/agents/report-writer.md`    | haiku  | Write structured reports to ./reports/ |
 | system-analytics | `.claude/agents/system-analytics.md` | sonnet | Convert feature request into tech spec |
 
 ---
@@ -286,13 +286,13 @@ All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
 
 #### Agents by Stage
 
-| Stage | Agents (parallel) | Role |
-|-------|-------------------|------|
-| Reproduce | main | Run tests, curl, read logs |
-| Diagnose | `go-diagnostics` + `git-investigator` + `security-reviewer` | Parallel investigation |
-| Fix | `go-builder` or `ts-builder` or `sql-builder` (by stack) | Write fix |
-| Validate | `test-runner` | Run all checks |
-| Report | `report-writer` | Save to ./reports/ |
+| Stage     | Agents (parallel)                                           | Role                       |
+|-----------|-------------------------------------------------------------|----------------------------|
+| Reproduce | main                                                        | Run tests, curl, read logs |
+| Diagnose  | `go-diagnostics` + `git-investigator` + `security-reviewer` | Parallel investigation     |
+| Fix       | `go-builder` or `ts-builder` or `sql-builder` (by stack)    | Write fix                  |
+| Validate  | `test-runner`                                               | Run all checks             |
+| Report    | `report-writer`                                             | Save to ./reports/         |
 
 #### Stage Details
 
@@ -390,11 +390,11 @@ All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
 
 #### Agents by Stage
 
-| Stage | Agents (parallel, by topic) | Role |
-|-------|----------------------------|------|
+| Stage   | Agents (parallel, by topic)                                                              | Role                                     |
+|---------|------------------------------------------------------------------------------------------|------------------------------------------|
 | Explore | `go-diagnostics` + `ts-diagnostics` + `sql-analyzer` + `rill-analyzer` + `docs-analyzer` | Parallel investigation (select by topic) |
-| Analyze | main | Synthesize agent findings |
-| Report | `report-writer` | Save to ./reports/ |
+| Analyze | main                                                                                     | Synthesize agent findings                |
+| Report  | `report-writer`                                                                          | Save to ./reports/                       |
 
 **CRITICAL: Research profile MUST NOT modify any code files.** Read-only investigation.
 
@@ -472,13 +472,13 @@ All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
 
 #### Agents by Stage
 
-| Stage | Agents | Role |
-|-------|--------|------|
-| Analyze Code | `docs-analyzer` + `go-diagnostics` + `ts-diagnostics` (parallel) | Compare code vs docs |
-| Plan Changes | main | List changes, ask user |
-| Update Docs | main | Write docs |
-| Validate | `docs-analyzer` | Check links, structure |
-| Report | `report-writer` | Save to ./reports/ |
+| Stage        | Agents                                                           | Role                   |
+|--------------|------------------------------------------------------------------|------------------------|
+| Analyze Code | `docs-analyzer` + `go-diagnostics` + `ts-diagnostics` (parallel) | Compare code vs docs   |
+| Plan Changes | main                                                             | List changes, ask user |
+| Update Docs  | main                                                             | Write docs             |
+| Validate     | `docs-analyzer`                                                  | Check links, structure |
+| Report       | `report-writer`                                                  | Save to ./reports/     |
 
 **CRITICAL: Update Docs profile MUST NOT modify source code.** Only `docs/` files.
 
