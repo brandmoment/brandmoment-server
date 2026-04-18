@@ -87,10 +87,10 @@ make rill-ui / jaeger-ui / minio-ui  # Open UIs
 ## Profile Selection
 
 Each request → ONE profile, auto-detected by keywords:
-- Bug/error/crash/500/regression → **Bug Fix**
-- How/what/where/why/explain/research → **Research**
+- Bug/error/crash/500/regression/broken/not working → **Bug Fix**
+- How/what/where/why/explain/research/investigate → **Research**
 - Docs/document/sync docs → **Update Docs**
-- Add/create/implement/build/new → **Feature**
+- Add/create/implement/build/new/update/change/modify/refactor → **Feature**
 - Run tests/validate/verify/check → **Verification**
 
 High confidence → proceed immediately with `[Profile: <name>]`. Ambiguous → confirm via `AskUserQuestion`. User can specify explicitly.
@@ -115,7 +115,7 @@ Defined in `.claude/agents/`. Launched via `Agent` tool.
 
 ### Delegation
 
-Main orchestrates; agents execute. Main NEVER writes source code, runs tests, reads code for diagnosis, or writes reports directly. Main MAY write docs and synthesis files (`02-analyze.md`, `02-plan.md`). Agent launch is mandatory at every stage — no shortcuts even for trivial tasks.
+Main orchestrates; agents execute. Main NEVER writes source code, runs the validation suite, reads code for diagnosis, or writes reports directly. Main MAY run single repro commands (`curl`, `go test -run TestSpecific`) at Reproduce stage. Main MAY write docs and synthesis files (`02-analyze.md`, `02-plan.md`). Agent launch is mandatory at every stage — no shortcuts even for trivial tasks.
 
 ### Validation Checks (used by `test-runner`)
 
@@ -132,6 +132,7 @@ Main orchestrates; agents execute. Main NEVER writes source code, runs tests, re
 - Test assertion fails → back to build stage (logic wrong)
 - Test compilation error → back to test-writing stage
 - E2E element/timeout → back to build or test stage depending on cause
+- 2+ fix iterations fail → back to diagnose stage (root cause was wrong)
 
 Loop until green. 3 iterations without progress → escalate to user.
 
@@ -162,7 +163,6 @@ next: <agent> | reason: <why> | input: <file paths, root cause, etc.>
 5. Empty agent result → note "no findings" and proceed
 6. Launch agents first — bookkeeping can wait
 7. Background agents: wait for notification before reading output. No polling
-8. Skip TaskCreate for profiles with ≤5 stages
 
 ---
 
