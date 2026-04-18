@@ -259,6 +259,60 @@ Agent definitions in `.claude/agents/`. Agents are launched via `Agent` tool wit
 
 ---
 
+## Task Workspace
+
+Each task gets a dedicated directory in `./reports/` for inter-agent communication and cross-session recovery.
+
+### Structure
+
+```
+reports/<slug>/
+  _status.md              ← current state, updated at each stage transition
+  01-reproduce.md         ← main writes reproduction steps
+  02-diagnose-go.md       ← go-diagnostics findings
+  02-diagnose-sec.md      ← security-reviewer findings
+  02-diagnose-git.md      ← git-investigator findings
+  03-fix.md               ← go-builder describes changes
+  04-validate.md          ← test-runner results
+  05-report.md            ← final report (compiled by report-writer)
+```
+
+### `_status.md` Format
+
+```markdown
+# Task: <title>
+Profile: Bug Fix | Research | Update Docs
+Stage: <current stage>
+Next: <agent or action>
+Created: <YYYY-MM-DD>
+Updated: <YYYY-MM-DD HH:MM>
+
+## Context
+<brief description of the task>
+
+## Handoff
+next: <agent name>
+reason: <why this agent is next>
+input: <what the agent needs to know — file paths, root cause, etc.>
+```
+
+`_status.md` is **replaced entirely** at each stage transition (not appended).
+
+### Rules
+
+1. **Main creates workspace** at task start: `mkdir -p reports/<slug>/` + write `_status.md`
+2. **Each agent writes its own file** — numbered by stage, suffixed by agent name
+3. **Agents read previous files** for context instead of receiving a rephrased summary from main
+4. **Main passes workspace path** to each agent in the prompt: "Workspace: `./reports/<slug>/`. Read previous stage files for context."
+5. **Parallel agents** write to separate files (e.g., `02-diagnose-go.md`, `02-diagnose-sec.md`) — no race conditions
+6. **Cross-session recovery**: new session scans `reports/*/_status.md` for tasks where Stage is not `Done` → offers to continue
+
+### Slug Convention
+
+`<short-description>-<profile>` — e.g., `org-getbyid-bug`, `auth-flow-research`, `backend-docs`
+
+---
+
 ## Profile: Bug Fix
 
 ### Workflow (STRICT)
@@ -343,27 +397,7 @@ If multiple hypotheses — present to user via `AskUserQuestion`.
 Validate CANNOT be skipped. If any check fails → back to Fix.
 
 **Report:**
-Save to `./reports/<slug>-bug-<YYYY-MM-DD>.md`:
-```
-# Bug Fix: <title>
-Date: <YYYY-MM-DD>
-Status: Fixed / Not Reproducible / Partially Fixed / Won't Fix
-
-## Problem
-<bug description>
-
-## Reproduction
-<steps or "not reproducible">
-
-## Root Cause
-<what was wrong and why>
-
-## Fix
-<what was changed — files, lines, logic>
-
-## Validation
-<which checks passed, test results>
-```
+`report-writer` compiles `05-report.md` in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
 
 ---
 
@@ -423,30 +457,7 @@ Select agents by topic relevance (not all 5 every time), but at least 2 agents M
 **CRITICAL: Research profile MUST NOT modify any code files.** Read-only investigation.
 
 **Report:**
-Save to `./reports/<slug>-research-<YYYY-MM-DD>.md`:
-```
-# Research: <question>
-Date: <YYYY-MM-DD>
-
-## Summary
-<1-3 sentence answer>
-
-## Findings
-
-### <Aspect 1>
-- Files: <paths>
-- How it works: <description>
-- Data flow: <trace>
-
-### <Aspect 2>
-...
-
-## Gaps / Issues Found
-<undocumented behavior, missing tests, potential bugs>
-
-## Related Files
-<list of key files with brief descriptions>
-```
+`report-writer` compiles `03-report.md` in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
 
 ---
 
@@ -524,20 +535,7 @@ All agents listed in the "Agents by Stage" table for a given stage MUST be launc
 4. No orphan pages (every .md is reachable from README)
 
 **Report:**
-Save to `./reports/<slug>-docs-<YYYY-MM-DD>.md`:
-```
-# Docs Update: <scope>
-Date: <YYYY-MM-DD>
-
-## Changes
-- <file>: <what changed>
-
-## New Sections
-- <file>: <what was added>
-
-## Gaps Remaining
-- <TODOs still unfilled, areas not yet documented>
-```
+`report-writer` compiles final report in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
 
 ---
 
