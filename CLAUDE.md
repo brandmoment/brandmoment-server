@@ -39,7 +39,7 @@ brandmoment-server/
 
 ## Pre-flight Checks
 
-Before generating code, verify tools: `go version`, `sqlc version`, `migrate -version`, `docker --version`, `pnpm --version`, `node --version`. If any missing — stop and report with install commands.
+Before generating code, verify tools: `go version`, `sqlc version`, `migrate -version`, `docker --version`, `pnpm --version`, `node --version`. If any missing — stop and report with install commands. Then run `ast-index update` to refresh the code index.
 
 ## Post-generation Checks
 
@@ -77,7 +77,7 @@ make rill-ui / jaeger-ui / minio-ui  # Open UIs
 ## Tools & Skills
 
 - **RTK**: token-optimized CLI proxy, transparent via hooks. See `~/.claude/RTK.md`
-- **ast-index**: `/ast-index` for symbol search, usages, implementations, project map. Prefer over Grep/Glob for symbols
+- **ast-index**: CLI for code search. Prefer over Grep/Glob for symbols. Key commands: `ast-index symbol <name>`, `ast-index usages <name>`, `ast-index refs <name>`, `ast-index implementations <name>`, `ast-index map`, `ast-index outline <file>`
 - **Plugins**: `gopls-lsp` (enabled), `typescript-lsp` / `frontend-design` / `playwright` (disabled). Enable: `claude plugin enable <name>`
 - **JetBrains MCP**: `build_project`, `get_file_problems`, `search_symbol`, `execute_run_configuration`
 - **Post-generation skills**: `/simplify`, `/security-review`, `/review`, `/frontend-design`
@@ -124,15 +124,15 @@ Main orchestrates; agents execute. Main NEVER writes source code, runs the valid
 | Go (`services/`, `packages/`) | `go build ./...` → `go vet ./...` → `go test ./...` |
 | TypeScript (`apps/dashboard/`) | `pnpm typecheck` → `pnpm lint` → `pnpm test` → `playwright e2e` |
 | SQL (`infra/migrations/`) | `sqlc generate` |
-| Auth/RBAC changes | `/security-review` |
+| Auth/RBAC changes | Main launches `security-reviewer` agent after Validate |
 
-### Validation Failure Routing
+### Validation Failure Routing (Bug Fix and Feature)
 
-- Build/vet/lint fails → back to build stage (source broken)
-- Test assertion fails → back to build stage (logic wrong)
-- Test compilation error → back to test-writing stage
-- E2E element/timeout → back to build or test stage depending on cause
-- 2+ fix iterations fail → back to diagnose stage (root cause was wrong)
+- Build/vet/lint fails → back to Fix/Implement stage (source broken)
+- Test assertion fails → back to Fix/Implement stage (logic wrong)
+- Test compilation error → back to Test stage
+- E2E element/timeout → back to Fix/Implement or Test stage depending on cause
+- 2+ fix iterations fail → back to Diagnose stage (Bug Fix only — root cause was wrong)
 
 Loop until green. 3 iterations without progress → escalate to user.
 

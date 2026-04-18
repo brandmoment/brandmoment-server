@@ -32,7 +32,7 @@ Each function: happy path + validation errors + edge cases + error propagation. 
 - NEVER import external test frameworks
 - Run ONLY new tests: `go test -v -run 'TestXxx' ./path/` — full suite is test-runner's job
 
-Prefer `/ast-index` for symbol/interface lookup.
+Use `ast-index` CLI via Bash for discovery: `ast-index symbol <name>`, `ast-index implementations <iface>`, `ast-index outline <file>`, `ast-index usages <name>`. Prefer over Grep for finding interfaces and their implementations.
 
 # Output
 

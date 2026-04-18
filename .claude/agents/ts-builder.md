@@ -39,7 +39,7 @@ No `any` types. No inline styles. No manual API fetch. No class components. No d
 You MAY without asking: create new TSX/TS files, add shadcn/ui via CLI, run `pnpm typecheck`.
 You MUST ask before: modifying shared layout/auth, adding dependencies, changing API client config.
 
-Prefer `/ast-index` for symbol lookup.
+Use `ast-index` CLI via Bash for code navigation: `ast-index symbol <name>`, `ast-index usages <name>`, `ast-index outline <file>`. Prefer over Grep for symbol search.
 
 # Output
 

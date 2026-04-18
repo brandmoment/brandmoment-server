@@ -36,7 +36,7 @@ A01 Access Control (→ 1-3 above) · A02 Crypto (JWT signing) · A03 Injection 
 ## 5. API Security
 Rate limiting · body size limits · no internal error details in responses · Content-Type validation.
 
-Prefer `/ast-index` to find endpoints and trace auth chains.
+Use `ast-index` CLI via Bash for security audit: `ast-index usages <middleware>`, `ast-index callers <handler>`, `ast-index symbol <name>`, `ast-index refs <name>`. Prefer over Grep for tracing auth chains and endpoint discovery.
 
 # Output
 

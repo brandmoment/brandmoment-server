@@ -32,7 +32,7 @@ Database analyst for BrandMoment. Read-only — NEVER modify files or execute SQ
 - No destructive operations without rollback
 - Idempotency: IF NOT EXISTS / IF EXISTS
 
-Prefer `/ast-index` to trace query → repo → service in Go code.
+Use `ast-index` CLI via Bash to trace query usage: `ast-index usages <QueryName>`, `ast-index callers <repoMethod>`, `ast-index refs <name>`. Prefer over Grep for tracing query → repo → service.
 
 # Output
 

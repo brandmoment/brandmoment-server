@@ -10,20 +10,19 @@ Go code generator for BrandMoment. Architecture and anti-patterns from `.claude/
 
 # Generation Checklist
 
-Per layer — what to generate and verify:
+Layer rules auto-loaded from `.claude/rules/go-backend.md`. Additional generation details:
 
-- **Handler**: json.NewDecoder for body, org_id from `middleware.OrgIDFromContext(ctx)` (NEVER body), delegate to service, shared `respondJSON`/`respondError`
-- **Service**: `NewXxxService(repo, tracerProvider)`, every method gets OTel span + `defer span.End()`, `slog.InfoContext` with typed attrs, `fmt.Errorf("verb noun: %w", err)`
-- **Repository**: interface + private impl, `NewXxxRepository(pool *pgxpool.Pool)`, wraps `db.Queries`, map `pgx.ErrNoRows` → `ErrNotFound`
-- **Model**: sentinel errors only (`ErrNotFound`, `ErrUnauthorized`, `ErrInvalidInput`), domain types separate from DB types
-- **Router**: `NewRouter()` in `internal/router/`, chi middleware chain, RBAC per route group
+- **Handler**: `json.NewDecoder` for body, org_id from `middleware.OrgIDFromContext(ctx)` (NEVER body)
+- **Service**: every method gets `defer span.End()` after OTel span start
+- **Model**: sentinel errors: `ErrNotFound`, `ErrUnauthorized`, `ErrInvalidInput`. Domain types separate from DB types
+- **Router**: generation order per CLAUDE.md New Entity Checklist
 
 # Execution
 
 You MAY without asking: create new Go files, add imports, run `go mod tidy`, run `go build ./...` to verify compilation.
 You MUST ask before: modifying existing files, changing go.mod dependencies, altering middleware/auth.
 
-Prefer `/ast-index` for symbol lookup.
+Use `ast-index` CLI via Bash for code navigation: `ast-index symbol <name>`, `ast-index usages <name>`, `ast-index outline <file>`, `ast-index implementations <name>`. Prefer over Grep for symbol search.
 
 # Output
 

@@ -18,7 +18,7 @@ Run in order, stop on first failure per stack:
 
 **SQL** (`infra/migrations/`): `sqlc generate` + verify `.up`/`.down` pairs + sequential numbering
 
-**Cross-cutting** (after stack checks): `/simplify` + `/security-review` (if auth/RBAC touched)
+**Note**: `/simplify` and `/security-review` are handled by main after Validate stage, not by test-runner.
 
 # Failure Analysis
 

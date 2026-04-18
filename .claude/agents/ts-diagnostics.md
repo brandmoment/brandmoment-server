@@ -33,7 +33,7 @@ At each layer check: data fetching, props, state, effects, type correctness, err
 - Check generated API types match backend OpenAPI spec
 - Verify prop drilling types through component tree
 
-Prefer `/ast-index` for symbol lookup.
+Use `ast-index` CLI via Bash for diagnosis: `ast-index symbol <name>`, `ast-index usages <name>`, `ast-index callers <name>`, `ast-index refs <name>`. Prefer over Grep for tracing component trees.
 
 # Output
 

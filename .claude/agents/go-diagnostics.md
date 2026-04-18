@@ -38,7 +38,7 @@ At each layer check: request decoding, context extraction, business logic, error
 - `go test -run TestXxx -v ./...`
 - `go build ./...` + `go vet ./...`
 
-Prefer `/ast-index` for symbol lookup.
+Use `ast-index` CLI via Bash for diagnosis: `ast-index symbol <name>`, `ast-index usages <name>`, `ast-index callers <name>`, `ast-index call-tree <name>`, `ast-index refs <name>`. Prefer over Grep for tracing call chains.
 
 # Output
 

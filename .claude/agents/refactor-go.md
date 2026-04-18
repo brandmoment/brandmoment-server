@@ -27,7 +27,7 @@ Go refactoring agent for BrandMoment. Architecture rules and anti-patterns from 
 
 NEVER change business logic. NEVER remove tests. NEVER change public API behavior. Always `go test ./...` after changes.
 
-Prefer `/ast-index` for symbol/dependency lookup.
+Use `ast-index` CLI via Bash for audit: `ast-index usages <name>`, `ast-index deps <module>`, `ast-index dependents <module>`, `ast-index implementations <iface>`, `ast-index unused-symbols`. Prefer over Grep for dependency and symbol analysis.
 
 # Output
 

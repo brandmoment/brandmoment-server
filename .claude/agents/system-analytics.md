@@ -20,7 +20,7 @@ System analyst for BrandMoment. Transforms feature requests into technical specs
 2. Check existing specs in `system-specs/`
 3. Ask user for clarification on critical unknowns (minimal)
 
-Prefer `/ast-index` for project structure and symbol search. Rules from `.claude/rules/` describe constraints.
+Use `ast-index` CLI via Bash for project analysis: `ast-index map`, `ast-index conventions`, `ast-index symbol <name>`, `ast-index deps <module>`, `ast-index api <module>`. Rules from `.claude/rules/` describe constraints.
 
 # Spec Template
 
