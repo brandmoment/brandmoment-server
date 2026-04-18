@@ -215,7 +215,7 @@ Each request is processed within ONE profile. Profile is determined combinationa
 2. If auto-detected with high confidence (clear keywords match) — **proceed immediately**, no confirmation needed. Log: `[Profile: <name>]`
 3. If ambiguous (multiple profiles match or no clear keywords) — confirm via `AskUserQuestion`
 4. User can explicitly specify a profile — always proceed immediately
-5. **First action after profile selection**: create workspace `reports/<slug>/` + `_status.md`
+5. **First action after profile selection**: create workspace `reports/<slug>/` + `_status.md` (profiles reference this step but do NOT duplicate it)
 
 ### Available Profiles
 
@@ -255,7 +255,7 @@ Agent definitions in `.claude/agents/`. Agents are launched via `Agent` tool wit
 | Agent            | File                                 | Model  | Role                                   |
 |------------------|--------------------------------------|--------|----------------------------------------|
 | test-runner      | `.claude/agents/test-runner.md`      | sonnet | Run Go/TS/SQL checks, analyze failures |
-| report-writer    | `.claude/agents/report-writer.md`    | haiku  | Write structured reports to ./reports/ |
+| report-writer    | `.claude/agents/report-writer.md`    | haiku  | Compile final report in task workspace |
 | system-analytics | `.claude/agents/system-analytics.md` | sonnet | Convert feature request into tech spec |
 
 ---
@@ -268,14 +268,28 @@ Each task gets a dedicated directory in `./reports/` for inter-agent communicati
 
 ```
 reports/<slug>/
-  _status.md              ← current state, updated at each stage transition
-  01-reproduce.md         ← main writes reproduction steps
-  02-diagnose-go.md       ← go-diagnostics findings
-  02-diagnose-sec.md      ← security-reviewer findings
-  02-diagnose-git.md      ← git-investigator findings
-  03-fix.md               ← go-builder describes changes
-  04-validate.md          ← test-runner results
-  05-report.md            ← final report (compiled by report-writer)
+  _status.md              ← current state + handoff, replaced at each transition
+
+  # Bug Fix example:
+  01-reproduce.md         ← main
+  02-diagnose-go.md       ← go-diagnostics
+  02-diagnose-sec.md      ← security-reviewer
+  02-diagnose-git.md      ← git-investigator
+  03-fix.md               ← go-builder
+  04-validate.md          ← test-runner
+  05-report.md            ← report-writer
+
+  # Research example:
+  01-explore-go.md        ← go-diagnostics
+  01-explore-docs.md      ← docs-analyzer
+  02-report.md            ← report-writer
+
+  # Update Docs example:
+  01-analyze-docs.md      ← docs-analyzer
+  01-analyze-go.md        ← go-diagnostics
+  02-plan.md              ← main
+  03-validate.md          ← docs-analyzer
+  04-report.md            ← report-writer
 ```
 
 ### `_status.md` Format
@@ -365,8 +379,7 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 #### Main's Job at Each Stage
 
 **Reproduce:** Main CAN read code and run tests at this stage (it's the entry point).
-1. Create workspace: `mkdir -p reports/<slug>/` + write `_status.md`
-2. Get bug description (from user, ticket, log)
+1. Get bug description (from user, ticket, log)
 3. Determine affected service via `AskUserQuestion` if not obvious
 4. Attempt reproduction (run tests, curl endpoints, read logs)
 5. Write `01-reproduce.md` to workspace
@@ -390,7 +403,7 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 - `security-reviewer`: auth/multi-tenancy implications
 - `go-builder`/`ts-builder`/`sql-builder`: minimal change — fix the bug, do not refactor surrounding code
 
-**Validate:**
+**Validate:** Main does NOT run checks. Main launches `test-runner` with workspace path. Agent determines checks by stack:
 
 | Stack                          | Checks                                               |
 |--------------------------------|------------------------------------------------------|
@@ -398,9 +411,8 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 | TypeScript (`apps/dashboard/`) | `pnpm typecheck` → `pnpm lint` → `pnpm test`         |
 | SQL (`infra/migrations/`)      | `sqlc generate` — verify queries compile             |
 | Auth/RBAC changes              | `/security-review`                                   |
-| All                            | `/simplify` — check for regressions and code quality |
 
-**Validate:** Main does NOT run checks. Main launches `test-runner` with workspace path. Agent runs checks and writes `04-validate.md`. If any check fails → back to Fix.
+Agent writes `04-validate.md` to workspace. If any check fails → back to Fix.
 
 **Report:**
 `report-writer` compiles `05-report.md` in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
@@ -449,8 +461,7 @@ Select agents by topic relevance (not all 5 every time), but at least 2 agents M
 #### Main's Job at Each Stage
 
 **Explore:** Main does NOT read code or trace flows. Main:
-1. Creates workspace directory `reports/<slug>/` + `_status.md`
-2. Selects relevant agents by topic (at least 2)
+1. Selects relevant agents by topic (at least 2)
 3. Launches agents in parallel, each with: workspace path + question + scope
 4. Waits for results
 
@@ -522,8 +533,7 @@ All agents listed in the "Agents by Stage" table for a given stage MUST be launc
 #### Main's Job at Each Stage
 
 **Analyze Code:** Main does NOT read code or compare with docs. Main:
-1. Creates workspace directory `reports/<slug>/` + `_status.md`
-2. Launches agents in parallel, each with workspace path
+1. Launches agents in parallel, each with workspace path
 3. Waits for results (agents write `01-analyze-*.md` to workspace)
 4. Reads agent files
 
