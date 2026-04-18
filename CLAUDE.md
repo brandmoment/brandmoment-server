@@ -183,8 +183,6 @@ Reproduce → Diagnose → Fix → Test → Validate → Report → Done
 | Validate | `test-runner` | Route failures per validation rules above |
 | Report | `report-writer` | Compiles report, sets `Stage: Done` |
 
-**Research profile is read-only. Bug Fix modifies code.**
-
 ---
 
 ## Profile: Feature
@@ -198,7 +196,7 @@ Spec → Implement → Test → Validate → Report → Done
 | Stage | Agents | Main's job |
 |-------|--------|------------|
 | Spec | main / `system-analytics` | Write `01-spec.md`: what to build, layers, acceptance criteria |
-| Implement | `go-builder` + `sql-builder` + `ts-builder` (parallel by stack) | SQL first if SQL+Go/TS, then others parallel |
+| Implement | `go-builder` + `sql-builder` + `ts-builder` (parallel by stack). For refactoring: `refactor-go` instead of `go-builder` | SQL first if SQL+Go/TS, then others parallel |
 | Test | `go-test-writer` + `e2e-test-writer` | Table-driven unit tests + smoke scenarios |
 | Validate | `test-runner` | Route failures per validation rules |
 | Report | `report-writer` | Compiles report, sets `Stage: Done` |
