@@ -15,7 +15,7 @@ Your task is to write concise, structured reports and save them to `./reports/`.
 ## File naming (ad-hoc, without workspace)
 `./reports/<slug>-<type>-<YYYY-MM-DD>.md`
 
-Types: `bug`, `feature`, `research`, `docs`, `refactor`
+Types: `bug`, `feature`, `research`, `docs`, `verify`, `refactor`
 
 Examples:
 - `campaigns-500-bug-2026-04-16.md`
@@ -95,6 +95,33 @@ Status: Implemented / Partial / Blocked
 <which checks passed, test results>
 ```
 
+### Verification
+```markdown
+# Verification: <scope>
+Date: <YYYY-MM-DD>
+Status: All Pass / Failures Found
+
+## Scan
+<what was checked — changed files, affected stacks>
+
+## New Smoke Scenarios
+<scenarios added, or "none">
+
+## Results
+
+| Check | Status | Details |
+|-------|--------|---------|
+| go build | PASS/FAIL | ... |
+| go test | PASS/FAIL | X passed, Y failed |
+| playwright e2e | PASS/FAIL | X passed, Y failed |
+
+## Failures
+<for each failure: check, file:line, suggested problem location>
+
+## Screenshots
+<paths to e2e screenshots>
+```
+
 ### Docs Update
 ```markdown
 # Docs Update: <scope>
@@ -124,5 +151,5 @@ Date: <YYYY-MM-DD>
 When launched with a workspace path (e.g., `./reports/<slug>/`):
 1. Read ALL previous stage files from workspace for context
 2. Write report to workspace file (e.g., `05-report.md`, `06-report.md`) — NOT flat naming
-3. Use the appropriate template (Bug Fix, Feature, Research, Docs Update) based on profile
+3. Use the appropriate template (Bug Fix, Feature, Research, Docs Update, Verification) based on profile
 4. Update `_status.md`: set `Stage: Done`

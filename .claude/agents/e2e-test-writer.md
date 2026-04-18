@@ -47,6 +47,7 @@ Expected: <outcome>
 1. Read previous stage files from workspace:
    - Feature: `01-spec.md` and `02-implement-*.md` — what was built
    - Bug Fix: `01-reproduce.md`, `02-diagnose-*.md`, `03-fix.md` — what was fixed
+   - Verification: `01-scan.md` — what changed (git diff, affected stacks)
 2. Read existing UI components referenced in those files (pages, forms, dialogs)
 3. **Generate new scenarios** — what user flows were added/changed/fixed?
 4. Append new scenarios to `tests/smoke/scenarios.md` (do NOT overwrite existing)

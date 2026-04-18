@@ -215,6 +215,7 @@ Each request is processed within ONE profile. Profile is determined combinationa
    - How, what, where, why, explain, research, investigate, describe, find → **Research**
    - Docs, document, update docs, sync docs, write docs, README → **Update Docs**
    - Add, create, implement, build, new feature, new endpoint, new entity → **Feature**
+   - Run tests, validate, verify, check, прогони тесты, run e2e, run smoke, after deploy → **Verification**
 2. If auto-detected with high confidence (clear keywords match) — **proceed immediately**, no confirmation needed. Log: `[Profile: <name>]`
 3. If ambiguous (multiple profiles match or no clear keywords) — confirm via `AskUserQuestion`
 4. User can explicitly specify a profile — always proceed immediately
@@ -228,6 +229,7 @@ Each request is processed within ONE profile. Profile is determined combinationa
 | Feature     | New endpoint, entity, page, component — writing new code           |
 | Research    | Codebase investigation, architecture question, coverage analysis   |
 | Update Docs | Sync `docs/` with current code state, fill TODOs, add new sections |
+| Verification | Run tests after PR/deploy, update smoke scenarios, unified report  |
 
 ### Available Agents
 
@@ -311,13 +313,19 @@ reports/<slug>/
   03-update.md            ← main (docs changes made)
   04-validate.md          ← docs-analyzer
   05-report.md            ← report-writer
+
+  # Verification example:
+  01-scan.md              ← main (what changed)
+  02-update-smoke.md      ← e2e-test-writer (new scenarios)
+  03-run.md               ← test-runner (all results)
+  04-report.md            ← report-writer (unified report)
 ```
 
 ### `_status.md` Format
 
 ```markdown
 # Task: <title>
-Profile: Bug Fix | Feature | Research | Update Docs
+Profile: Bug Fix | Feature | Research | Update Docs | Verification
 Stage: <current stage>
 Next: <agent or action>
 Created: <YYYY-MM-DD>
@@ -347,7 +355,7 @@ input: <what the agent needs to know — file paths, root cause, etc.>
 
 ### Slug Convention
 
-`<short-description>-<profile>` — e.g., `org-getbyid-bug`, `campaigns-crud-feature`, `auth-flow-research`, `backend-docs`
+`<short-description>-<profile>` — e.g., `org-getbyid-bug`, `campaigns-crud-feature`, `auth-flow-research`, `backend-docs`, `post-pr-verify`
 
 ---
 
@@ -690,6 +698,99 @@ All agents listed in the "Agents by Stage" table for a given stage MUST be launc
 
 **Report:**
 `report-writer` compiles final report in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
+
+---
+
+## Profile: Verification
+
+### Workflow (STRICT)
+
+```
+Scan → Update Smoke → Run → Report → Done
+```
+
+#### Allowed Transitions
+
+```
+Scan          → Update Smoke    (new/changed features detected — generate smoke scenarios)
+Scan          → Run             (no new features — just run existing tests)
+Update Smoke  → Run
+Run           → Report
+Report        → Done
+```
+
+All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
+
+**CRITICAL: Verification profile MUST NOT modify source code or fix failures.** Report-only. If tests fail — report where the problem is, do NOT fix.
+
+#### When to Use
+
+- After PR is created — verify everything passes before merge
+- After deploy — verify nothing broke, update smoke scenarios if new features landed
+- On demand — "прогони тесты", "validate", "run tests", "verify"
+
+#### Agent Launch Policy (MANDATORY)
+
+Main orchestrates; agents execute. Main does NOT run tests or write scenarios itself.
+
+#### Agents by Stage
+
+| Stage        | Agents                    | Role                                     |
+|--------------|---------------------------|------------------------------------------|
+| Scan         | main                      | Detect what changed (git diff, user input) |
+| Update Smoke | `e2e-test-writer` (Mode B)  | Generate new scenarios for changed features |
+| Run          | `test-runner`             | Run ALL checks: go test + playwright + lint |
+| Report       | `report-writer`           | Unified report with results + screenshots  |
+
+#### Main's Job at Each Stage
+
+**Scan:** Main determines what changed:
+1. Run `git diff main...HEAD --stat` to see changed files
+2. Classify changes by stack (Go, TypeScript, SQL)
+3. Determine if new user-facing features were added (new pages, components, endpoints)
+4. If new features → Update Smoke. If only backend/infra → skip to Run
+5. Write `01-scan.md` to workspace with: changed files, affected stacks, new features detected
+
+**Update Smoke:** Main does NOT write scenarios. Main:
+1. Launches `e2e-test-writer` with workspace path
+2. Agent reads `01-scan.md` to understand what changed
+3. Agent reads changed UI components to generate new scenarios
+4. Agent appends scenarios to `tests/smoke/scenarios.md`, writes `.spec.ts`
+5. Agent writes `02-update-smoke.md` to workspace
+
+**Run:** Main does NOT run checks. Main launches `test-runner` with workspace path. Agent runs ALL checks:
+
+| Stack                          | Checks                                               |
+|--------------------------------|------------------------------------------------------|
+| Go (`services/`, `packages/`)  | `go build ./...` → `go vet ./...` → `go test ./...`  |
+| TypeScript (`apps/dashboard/`) | `pnpm typecheck` → `pnpm lint` → `pnpm test` → `playwright e2e` |
+| SQL (`infra/migrations/`)      | `sqlc generate` — verify queries compile             |
+
+Agent writes `03-run.md` to workspace. If failures found — agent reports:
+- Which check failed
+- File:line of the error
+- **Suggested location of the problem** (component, handler, migration)
+
+**Report:**
+`report-writer` compiles `04-report.md` from all stage files. Unified report includes:
+- What was scanned (changed files)
+- New smoke scenarios added (if any)
+- Full results table (unit tests + e2e + lint)
+- Failures with suggested problem locations
+- Screenshots from e2e runs
+
+Updates `_status.md`: `Stage: Done`.
+
+#### Workspace Example
+
+```
+reports/<slug>/
+  _status.md              ← current state
+  01-scan.md              ← main (what changed)
+  02-update-smoke.md      ← e2e-test-writer (new scenarios)
+  03-run.md               ← test-runner (all results)
+  04-report.md            ← report-writer (unified report)
+```
 
 ---
 
