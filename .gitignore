@@ -11,3 +11,5 @@ tmp/
 /infra/rill/.db/
 /infra/rill/tmp/
 go.work.sum
+task.txt
+reports/peer-repos-review-*.md
