@@ -121,3 +121,11 @@ After saving:
 2. File path
 3. 3-5 key points
 4. Open questions for the user (if any)
+
+=====================================================================
+# 6. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Write spec to workspace file specified in prompt (e.g., `01-spec.md`) in addition to `system-specs/`
+3. Include: feature summary, affected stacks (Go/SQL/TS), acceptance criteria

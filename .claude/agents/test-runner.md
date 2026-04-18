@@ -107,5 +107,5 @@ For each failure:
 
 When launched with a workspace path:
 1. Read previous stage files for context (fix, test, implement files)
-2. Write results to workspace file (e.g., `04-validate.md` or `05-validate.md`)
+2. Write results to workspace file specified in prompt (e.g., `04-validate.md`, `05-validate.md`, `03-run.md`)
 3. Include full results table and failure details in workspace file

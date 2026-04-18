@@ -67,3 +67,12 @@ Code changes that matter.
 
 ### 4) Authors
 Who to ask for context.
+
+=====================================================================
+# 4. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context (e.g., `01-reproduce.md`, `01-scan.md`)
+3. Write findings to workspace file specified in prompt (e.g., `02-diagnose-git.md`, `01-scan-git.md`)
+4. Include all sections from Output Format above

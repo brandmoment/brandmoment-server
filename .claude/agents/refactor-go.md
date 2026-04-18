@@ -114,3 +114,12 @@ Files modified/created/moved.
 
 ### 4) Verification
 Test results, build status.
+
+=====================================================================
+# 5. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context
+3. Write results to workspace file specified in prompt
+4. Include: violations found, refactoring plan, changes made, verification results

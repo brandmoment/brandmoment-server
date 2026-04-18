@@ -99,3 +99,12 @@ Each finding:
 - **OWASP**: mapping (A01, A03, etc.)
 - **Proof**: code snippet
 - **Fix**: suggested change (do NOT apply)
+
+=====================================================================
+# 4. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context (e.g., `01-reproduce.md`, `02-diagnose-*.md`)
+3. Write findings to workspace file specified in prompt (e.g., `02-diagnose-sec.md`)
+4. Include all sections from Output Format above

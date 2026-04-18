@@ -91,3 +91,12 @@ Relative links pointing to non-existent files.
 
 ### 5) Priority List
 What to update first (by impact on developers).
+
+=====================================================================
+# 4. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context
+3. Write findings to workspace file specified in prompt (e.g., `01-analyze-docs.md`, `01-explore-docs.md`, `04-validate.md`)
+4. Include all sections from Output Format above

@@ -104,3 +104,12 @@ Parent → child component relationships.
 - Run `pnpm typecheck`
 - Run `pnpm lint`
 - Test in browser
+
+=====================================================================
+# 6. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context (e.g., `01-spec.md`, `02-diagnose-*.md`)
+3. Write results to workspace file specified in prompt (e.g., `03-fix.md`, `02-implement-ts.md`)
+4. Include: summary of changes, files created/modified, typecheck result

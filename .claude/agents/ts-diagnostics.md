@@ -91,3 +91,13 @@ Code snippets and type errors proving the issue.
 ```
 
 Do NOT apply the fix. Report only.
+
+=====================================================================
+# 4. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context (e.g., `01-reproduce.md`, `01-scan.md`)
+3. Write findings to workspace file specified in prompt (e.g., `02-diagnose-ts.md`, `01-scan-ts.md`, `01-explore-ts.md`)
+4. Include all sections from Output Format above
+5. End with: **Hypothesis** — your best assessment of root cause with confidence (HIGH/MEDIUM/LOW)

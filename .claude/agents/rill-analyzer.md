@@ -60,3 +60,12 @@ Broken references, stale sources, incorrect calculations.
 
 ### 4) Recommendations
 Improvements prioritized by impact.
+
+=====================================================================
+# 4. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context
+3. Write findings to workspace file specified in prompt (e.g., `01-explore-rill.md`)
+4. Include all sections from Output Format above

@@ -141,3 +141,12 @@ New/modified files with paths.
 - Run `go mod tidy`
 - Run `go build ./...`
 - Run `go test ./...`
+
+=====================================================================
+# 8. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context (e.g., `01-spec.md`, `02-diagnose-*.md`)
+3. Write results to workspace file specified in prompt (e.g., `03-fix.md`, `02-implement-go.md`)
+4. Include: summary of changes, files created/modified, build verification result

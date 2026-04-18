@@ -348,7 +348,7 @@ input: <what the agent needs to know — file paths, root cause, etc.>
 1. **Main creates workspace** at task start: `mkdir -p reports/<slug>/` + write `_status.md`
 2. **Each agent writes its own file** — numbered by stage, suffixed by agent name
 3. **Agents read previous files** for context instead of receiving a rephrased summary from main
-4. **Main passes workspace path** to each agent in the prompt: "Workspace: `./reports/<slug>/`. Read previous stage files for context."
+4. **Main passes workspace path AND output filename** to each agent in the prompt: "Workspace: `./reports/<slug>/`. Write output to `02-diagnose-go.md`. Read previous stage files for context."
    - Main does NOT pre-read agent output files or prior spec files "for context" — this wastes main's context window and duplicates work agents will do
    - Main reads ONLY its own stage output (e.g., `01-reproduce.md`, `01-scan.md`) and agent results AFTER agents finish
 5. **Parallel agents** write to separate files (e.g., `02-diagnose-go.md`, `02-diagnose-sec.md`) — no race conditions
@@ -418,22 +418,22 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 
 #### Main's Job at Each Stage
 
-**Reproduce:** Main CAN read code and run tests at this stage (it's the entry point).
+**Reproduce:** Main verifies the bug exists. Main:
 1. Get bug description (from user, ticket, log)
-2. Determine affected service by analyzing bug description, file paths, stack trace. Only escalate to user if zero clues after reading code
-3. Attempt reproduction (run tests, curl endpoints, read logs)
-4. Write `01-reproduce.md` to workspace
-5. If NOT reproducible after 3 attempts — ask user or move to Report with "Not Reproduced" mark
+2. Determine affected stack from file paths and error messages only (Go/TS/SQL). If ambiguous — ask user. MUST NOT read service logic or trace code flow
+3. Attempt reproduction (run tests, curl endpoints, read error logs)
+4. Write `01-reproduce.md` to workspace with: bug description, reproduction steps, affected stack
+5. If NOT reproducible after 3 attempts — ask user for more context or move to Report with "Not Reproduced" mark
 
 **Diagnose:** Main does NOT investigate. Main:
-1. Launches agents **in parallel**, each with workspace path
+1. Launches agents **in parallel**, each with workspace path and output filename
 2. Waits for results (agents write `02-diagnose-*.md` to workspace)
-3. Reads agent files, forms root cause hypothesis
-4. If multiple hypotheses — pick most likely, document reasoning in workspace. Only escalate to user if hypotheses are equally probable
+3. Reads agent files, checks if agents converge on root cause
+4. If agents agree → proceed to Fix with the agreed root cause. If agents disagree → escalate to user with competing hypotheses. Main does NOT pick between hypotheses
 
 **Fix:** Main does NOT write code. Main:
-1. Launches appropriate builder agent with workspace path (agent reads diagnose files for context)
-2. Agent writes fix + `03-fix.md` to workspace
+1. Launches appropriate builder agent with workspace path and output filename `03-fix.md`
+2. Agent reads diagnose files, writes fix + `03-fix.md` to workspace
 3. If fix touches auth/multi-tenancy — flag for security review
 
 #### What Agents Do (context for agent prompts)

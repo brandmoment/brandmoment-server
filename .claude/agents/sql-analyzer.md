@@ -87,3 +87,12 @@ Safety problems in migration files.
 
 ### 6) Recommendations
 Prioritized list: CRITICAL → HIGH → MEDIUM → LOW.
+
+=====================================================================
+# 4. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context
+3. Write findings to workspace file specified in prompt (e.g., `01-explore-sql.md`)
+4. Include all sections from Output Format above

@@ -103,3 +103,12 @@ Full sqlc queries with annotations.
 - Run `sqlc generate`
 - Verify with `go build ./...`
 - Test with `migrate -path infra/migrations -database $DB_URL up`
+
+=====================================================================
+# 6. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read `_status.md` for task context
+2. Read previous stage files for context (e.g., `01-spec.md`)
+3. Write results to workspace file specified in prompt (e.g., `02-implement-sql.md`)
+4. Include: migration files created, sqlc queries added, `sqlc generate` result
