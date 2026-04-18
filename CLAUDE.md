@@ -212,8 +212,9 @@ Each request is processed within ONE profile. Profile is determined combinationa
    - Bug, error, crash, not working, breaks, exception, stacktrace, 500, regression → **Bug Fix**
    - How, what, where, why, explain, research, investigate, describe, find → **Research**
    - Docs, document, update docs, sync docs, write docs, README → **Update Docs**
-2. **Confirmation** via `AskUserQuestion`: "Detected profile: **<name>**. Correct?"
-3. User can explicitly specify a profile — confirmation not required
+2. If auto-detected with high confidence (clear keywords match) — **proceed immediately**, no confirmation needed. Log: `[Profile: <name>]`
+3. If ambiguous (multiple profiles match or no clear keywords) — confirm via `AskUserQuestion`
+4. User can explicitly specify a profile — always proceed immediately
 
 ### Available Profiles
 
@@ -283,6 +284,18 @@ Report     → Done
 ```
 
 All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
+
+#### Agent Launch Policy (MANDATORY)
+
+Agent launch at each stage is **MANDATORY, not optional**. Even for trivial bugs — agents may find related issues that main misses. Main MUST NOT perform agent work itself (diagnosing, writing fixes, running checks). Main orchestrates; agents execute.
+
+Violations:
+- Main reads code to find root cause instead of launching `go-diagnostics` → **FORBIDDEN**
+- Main writes a fix instead of launching `go-builder` → **FORBIDDEN**
+- Main runs `go build`/`go test` instead of launching `test-runner` → **FORBIDDEN**
+- Skipping `git-investigator` because "the bug is obvious" → **FORBIDDEN**
+
+If an agent returns and confirms the bug is trivial, main may note that in the report — but the agent MUST still run.
 
 #### Agents by Stage
 
@@ -374,6 +387,17 @@ Report    → Done
 
 All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
 
+#### Agent Launch Policy (MANDATORY)
+
+Agent launch at Explore stage is **MANDATORY, not optional**. Even for simple questions — agents may find related gaps, inconsistencies, or undocumented behavior that main would miss. Main orchestrates and synthesizes; agents investigate.
+
+Violations:
+- Main reads code and traces data flow instead of launching topic-relevant agents → **FORBIDDEN**
+- Main skips `docs-analyzer` because "there are no docs for this" → **FORBIDDEN**
+- Main writes the report without launching `report-writer` → **FORBIDDEN**
+
+Select agents by topic relevance (not all 5 every time), but at least 2 agents MUST run in parallel at Explore stage.
+
 #### Stage Details
 
 **Explore:**
@@ -448,6 +472,17 @@ Report         → Done
 
 All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
 
+#### Agent Launch Policy (MANDATORY)
+
+Agent launch at each stage is **MANDATORY, not optional**. Main orchestrates and writes docs; agents investigate and validate.
+
+Violations:
+- Main reads code to compare with docs instead of launching `docs-analyzer` + `go-diagnostics` / `ts-diagnostics` → **FORBIDDEN**
+- Main skips Validate stage or checks links manually instead of launching `docs-analyzer` → **FORBIDDEN**
+- Main writes the report without launching `report-writer` → **FORBIDDEN**
+
+All agents listed in the "Agents by Stage" table for a given stage MUST be launched. No shortcuts.
+
 #### Stage Details
 
 **Analyze Code:**
@@ -458,7 +493,7 @@ All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
 
 **Plan Changes:**
 1. List docs sections to create or update
-2. Present plan to user via `AskUserQuestion`: "Found N sections to update: ... Proceed?"
+2. Log plan: `[Plan: N sections to update: ...]` — proceed immediately, no confirmation needed
 3. Prioritize: fill TODOs > update stale content > add new sections
 
 **Update Docs:**
