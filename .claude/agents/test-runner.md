@@ -18,6 +18,7 @@ You run all validation checks AUTOMATICALLY without asking:
 - `go test ./...`
 - `pnpm typecheck`
 - `pnpm lint`
+- `npx playwright test tests/smoke/` (if spec files exist)
 - `sqlc generate`
 
 You MUST STOP and ask before:
@@ -46,6 +47,7 @@ Run in order — stop on first failure:
 1. `pnpm typecheck` — type checking
 2. `pnpm lint` — lint rules
 3. `pnpm test` — unit tests (if they exist)
+4. `npx playwright test tests/smoke/` — E2E smoke tests (if `tests/smoke/*.spec.ts` exist)
 
 ## SQL (infra/migrations/, packages/shared-domain/)
 1. `sqlc generate` — verify queries compile against schema
@@ -67,6 +69,7 @@ When a check fails:
    - Test failure (assertion failed, expected vs got)
    - Lint violation (unused var, naming)
    - Race condition (concurrent access)
+   - E2E failure (element not found, timeout, navigation error — include screenshot path)
 
 =====================================================================
 # 3. SAFETY RULES
@@ -87,6 +90,8 @@ When a check fails:
 | go vet | PASS/FAIL | warnings |
 | go test | PASS/FAIL | X passed, Y failed |
 | pnpm typecheck | PASS/FAIL | error count |
+| pnpm lint | PASS/FAIL | violation count |
+| playwright e2e | PASS/FAIL | X passed, Y failed, screenshots |
 | ... | ... | ... |
 
 ### Failures (if any)

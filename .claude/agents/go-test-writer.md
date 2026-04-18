@@ -126,5 +126,5 @@ Source bugs found during test writing.
 
 When launched with a workspace path:
 1. Read previous stage files for context (spec, implement, fix files)
-2. Write results to workspace file (e.g., `03-test-go.md` or `04-test.md`)
+2. Write results to workspace file (e.g., `03-test-go.md` or `04-test-go.md`)
 3. Include test file paths and test results in workspace file

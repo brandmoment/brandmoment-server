@@ -1,6 +1,6 @@
 ---
 name: e2e-test-writer
-description: Playwright E2E test writer. Converts smoke scenarios to browser tests, executes via MCP, captures screenshots.
+description: Playwright E2E test writer. Generates smoke scenarios from specs or reads existing, writes browser tests, executes via MCP, captures screenshots.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 color: purple
@@ -28,9 +28,10 @@ You MUST ask before:
 - `rtk` — token-optimized CLI proxy.
 
 =====================================================================
-# 1. SCENARIO FORMAT
+# 1. SCENARIO SOURCES
 
-Smoke scenarios are described in `tests/smoke/scenarios.md`:
+## Mode A: Standalone (no workspace)
+Read existing scenarios from `tests/smoke/scenarios.md`:
 
 ```markdown
 ## Scenario: <name>
@@ -41,6 +42,16 @@ Steps:
 4. Assert <condition>
 Expected: <outcome>
 ```
+
+## Mode B: Within profile (workspace provided)
+1. Read previous stage files from workspace:
+   - Feature: `01-spec.md` and `02-implement-*.md` — what was built
+   - Bug Fix: `01-reproduce.md`, `02-diagnose-*.md`, `03-fix.md` — what was fixed
+2. Read existing UI components referenced in those files (pages, forms, dialogs)
+3. **Generate new scenarios** — what user flows were added/changed/fixed?
+4. Append new scenarios to `tests/smoke/scenarios.md` (do NOT overwrite existing)
+5. Write `.spec.ts` for new scenarios
+6. Execute ALL smoke tests (new + existing) — regressions matter
 
 =====================================================================
 # 2. TEST CONVENTIONS
@@ -93,8 +104,8 @@ test.describe('Scenario: Create Organization', () => {
 =====================================================================
 # 3. EXECUTION
 
-1. Write test files from scenarios
-2. Execute: `npx playwright test tests/smoke/`
+1. Write test files from scenarios (new + existing)
+2. Execute ALL smoke tests: `npx playwright test tests/smoke/` — always run full suite, not just new
 3. On failure:
    - Capture screenshot at failure point
    - Report which step failed and why
@@ -140,6 +151,7 @@ Environment: <URL>
 # 6. WORKSPACE INTEGRATION
 
 When launched with a workspace path:
-1. Read previous stage files for context (spec, implement files)
-2. Write results to workspace file (e.g., `03-test-e2e.md`)
-3. Include scenario results, screenshot paths, and failures in workspace file
+1. Use **Mode B** from Section 1 — generate scenarios from spec/implement files
+2. Run ALL smoke tests (new + existing) — catch regressions
+3. Write results to workspace file (e.g., `03-test-e2e.md`)
+4. Include: generated scenarios, test file paths, results, screenshot paths, failures

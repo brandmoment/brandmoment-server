@@ -241,7 +241,7 @@ Agent definitions in `.claude/agents/`. Agents are launched via `Agent` tool wit
 | ts-builder      | `.claude/agents/ts-builder.md`      | sonnet | Next.js pages, components, hooks               |
 | sql-builder     | `.claude/agents/sql-builder.md`     | sonnet | Migrations, sqlc queries                       |
 | go-test-writer  | `.claude/agents/go-test-writer.md`  | sonnet | Find uncovered Go modules, write unit tests    |
-| e2e-test-writer | `.claude/agents/e2e-test-writer.md` | sonnet | Playwright smoke tests from scenario specs     |
+| e2e-test-writer | `.claude/agents/e2e-test-writer.md` | sonnet | Playwright smoke tests — generates or reads scenarios |
 | refactor-go     | `.claude/agents/refactor-go.md`     | sonnet | Architecture violations, SOLID, layering       |
 
 **Experts (investigate, do NOT write code):**
@@ -282,7 +282,8 @@ reports/<slug>/
   02-diagnose-sec.md      ← security-reviewer
   02-diagnose-git.md      ← git-investigator
   03-fix.md               ← go-builder
-  04-test.md              ← go-test-writer
+  04-test-go.md           ← go-test-writer
+  04-test-e2e.md          ← e2e-test-writer
   05-validate.md          ← test-runner
   06-report.md            ← report-writer
 
@@ -431,7 +432,7 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 
 **Test:** Main does NOT write tests. Main:
 1. Launches `go-test-writer` or `e2e-test-writer` with workspace path (agent reads fix files for context)
-2. Agent writes regression test covering the bug scenario + `04-test.md` to workspace
+2. Agent writes regression test covering the bug scenario + `04-test-go.md` or `04-test-e2e.md` to workspace
 3. Regression test MUST assert the fixed behavior — if the fix is reverted, the test MUST fail
 
 **Validate:** Main does NOT run checks. Main launches `test-runner` with workspace path. Agent determines checks by stack:
@@ -439,7 +440,7 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 | Stack                          | Checks                                               |
 |--------------------------------|------------------------------------------------------|
 | Go (`services/`, `packages/`)  | `go build ./...` → `go vet ./...` → `go test ./...`  |
-| TypeScript (`apps/dashboard/`) | `pnpm typecheck` → `pnpm lint` → `pnpm test`         |
+| TypeScript (`apps/dashboard/`) | `pnpm typecheck` → `pnpm lint` → `pnpm test` → `playwright e2e` |
 | SQL (`infra/migrations/`)      | `sqlc generate` — verify queries compile             |
 | Auth/RBAC changes              | `/security-review`                                   |
 
@@ -447,6 +448,7 @@ Agent writes `05-validate.md` to workspace. If checks fail, main reads error det
 - Build/vet fails → back to **Fix** (source code is broken)
 - Test assertion fails → back to **Fix** (fix didn't solve the bug, or broke something else)
 - Test compilation error → back to **Test** (test code itself is broken)
+- E2E failure (element not found, timeout) → back to **Fix** (UI is broken) or **Test** (selector is wrong)
 
 **Loop until green.** If 3 iterations without progress → escalate to user with summary of what's failing.
 
@@ -527,6 +529,7 @@ Violations:
 - Build/vet/lint fails → back to **Implement** (source code is broken)
 - Test assertion fails → back to **Implement** (implementation doesn't match expected behavior)
 - Test compilation error → back to **Test** (test code itself is broken)
+- E2E failure (element not found, timeout) → back to **Implement** (UI is broken) or **Test** (selector is wrong)
 
 **Loop until green.** If 3 iterations without progress → escalate to user.
 
