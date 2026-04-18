@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { organization } from "better-auth/plugins";
+import { organization, jwt } from "better-auth/plugins";
 import { Pool } from "pg";
 
 const pool = new Pool({
@@ -19,6 +19,7 @@ export const auth = betterAuth({
     organization({
       allowUserToCreateOrganization: true,
     }),
+    jwt(),
   ],
   session: {
     cookieCache: {
