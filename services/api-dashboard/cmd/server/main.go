@@ -72,13 +72,31 @@ func main() {
 	orgInviteService := service.NewOrgInviteService(orgInviteRepo, tp)
 	orgInviteHandler := handler.NewOrgInviteHandler(orgInviteService)
 
+	// DI — publisher apps
+	publisherAppRepo := repository.NewPublisherAppRepository(pool)
+	publisherAppService := service.NewPublisherAppService(publisherAppRepo, tp)
+	publisherAppHandler := handler.NewPublisherAppHandler(publisherAppService)
+
+	// DI — api keys
+	apiKeyRepo := repository.NewAPIKeyRepository(pool)
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo, tp)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
+
+	// DI — publisher rules
+	publisherRuleRepo := repository.NewPublisherRuleRepository(pool)
+	publisherRuleService := service.NewPublisherRuleService(publisherRuleRepo, tp)
+	publisherRuleHandler := handler.NewPublisherRuleHandler(publisherRuleService)
+
 	healthHandler := handler.NewHealthHandler()
 
 	mux := router.NewRouter(&router.Handlers{
-		Health:       healthHandler,
-		Organization: orgHandler,
-		User:         userHandler,
-		OrgInvite:    orgInviteHandler,
+		Health:        healthHandler,
+		Organization:  orgHandler,
+		User:          userHandler,
+		OrgInvite:     orgInviteHandler,
+		PublisherApp:  publisherAppHandler,
+		APIKey:        apiKeyHandler,
+		PublisherRule: publisherRuleHandler,
 	}, auth)
 
 	srv := &http.Server{

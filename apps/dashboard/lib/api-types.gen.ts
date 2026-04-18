@@ -64,6 +64,222 @@ export interface paths {
       };
     };
   };
+  "/v1/publisher-apps": {
+    get: {
+      parameters: {
+        query?: { limit?: number; offset?: number };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: {
+                items: components["schemas"]["PublisherApp"][];
+                total: number;
+                limit: number;
+                offset: number;
+              };
+            };
+          };
+        };
+      };
+    };
+    post: {
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreatePublisherAppRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": {
+              data: components["schemas"]["PublisherApp"];
+            };
+          };
+        };
+      };
+    };
+  };
+  "/v1/publisher-apps/{id}": {
+    get: {
+      parameters: {
+        path: { id: string };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: components["schemas"]["PublisherApp"];
+            };
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        path: { id: string };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdatePublisherAppRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: components["schemas"]["PublisherApp"];
+            };
+          };
+        };
+      };
+    };
+  };
+  "/v1/publisher-apps/{id}/api-keys": {
+    get: {
+      parameters: {
+        path: { id: string };
+        query?: { include_revoked?: boolean };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: {
+                items: components["schemas"]["APIKey"][];
+              };
+            };
+          };
+        };
+      };
+    };
+    post: {
+      parameters: {
+        path: { id: string };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreateAPIKeyRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": {
+              data: components["schemas"]["CreateAPIKeyResponse"];
+            };
+          };
+        };
+      };
+    };
+  };
+  "/v1/publisher-apps/{id}/api-keys/{keyId}": {
+    delete: {
+      parameters: {
+        path: { id: string; keyId: string };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: { id: string; revoked_at: string };
+            };
+          };
+        };
+      };
+    };
+  };
+  "/v1/publisher-apps/{id}/rules": {
+    get: {
+      parameters: {
+        path: { id: string };
+        query?: { limit?: number; offset?: number };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: {
+                items: components["schemas"]["PublisherRule"][];
+                total: number;
+                limit: number;
+                offset: number;
+              };
+            };
+          };
+        };
+      };
+    };
+    post: {
+      parameters: {
+        path: { id: string };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["CreatePublisherRuleRequest"];
+        };
+      };
+      responses: {
+        201: {
+          content: {
+            "application/json": {
+              data: components["schemas"]["PublisherRule"];
+            };
+          };
+        };
+      };
+    };
+  };
+  "/v1/publisher-apps/{id}/rules/{ruleId}": {
+    get: {
+      parameters: {
+        path: { id: string; ruleId: string };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: components["schemas"]["PublisherRule"];
+            };
+          };
+        };
+      };
+    };
+    put: {
+      parameters: {
+        path: { id: string; ruleId: string };
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdatePublisherRuleRequest"];
+        };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: components["schemas"]["PublisherRule"];
+            };
+          };
+        };
+      };
+    };
+    delete: {
+      parameters: {
+        path: { id: string; ruleId: string };
+      };
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              data: { id: string };
+            };
+          };
+        };
+      };
+    };
+  };
   "/v1/orgs/{id}/invites": {
     post: {
       parameters: {
@@ -123,6 +339,66 @@ export interface components {
       role: string;
       org_id: string;
       expires_at: string;
+    };
+    PublisherApp: {
+      id: string;
+      org_id: string;
+      name: string;
+      platform: "ios" | "android" | "web";
+      bundle_id: string;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    };
+    CreatePublisherAppRequest: {
+      name: string;
+      platform: "ios" | "android" | "web";
+      bundle_id: string;
+    };
+    UpdatePublisherAppRequest: {
+      name?: string;
+      is_active?: boolean;
+    };
+    APIKey: {
+      id: string;
+      org_id: string;
+      app_id: string;
+      name: string;
+      key_prefix: string;
+      is_revoked: boolean;
+      created_at: string;
+      revoked_at: string | null;
+    };
+    CreateAPIKeyRequest: {
+      name: string;
+    };
+    CreateAPIKeyResponse: {
+      id: string;
+      org_id: string;
+      app_id: string;
+      name: string;
+      key: string;
+      key_prefix: string;
+      is_revoked: boolean;
+      created_at: string;
+    };
+    PublisherRule: {
+      id: string;
+      org_id: string;
+      app_id: string;
+      type: "blocklist" | "allowlist" | "frequency_cap" | "geo_filter" | "platform_filter";
+      config: Record<string, unknown>;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    };
+    CreatePublisherRuleRequest: {
+      type: "blocklist" | "allowlist" | "frequency_cap" | "geo_filter" | "platform_filter";
+      config: Record<string, unknown>;
+    };
+    UpdatePublisherRuleRequest: {
+      config?: Record<string, unknown>;
+      is_active?: boolean;
     };
     ErrorResponse: {
       error: {

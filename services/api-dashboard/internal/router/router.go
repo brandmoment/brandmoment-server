@@ -12,10 +12,13 @@ import (
 )
 
 type Handlers struct {
-	Health       *handler.HealthHandler
-	Organization *handler.OrganizationHandler
-	User         *handler.UserHandler
-	OrgInvite    *handler.OrgInviteHandler
+	Health        *handler.HealthHandler
+	Organization  *handler.OrganizationHandler
+	User          *handler.UserHandler
+	OrgInvite     *handler.OrgInviteHandler
+	PublisherApp  *handler.PublisherAppHandler
+	APIKey        *handler.APIKeyHandler
+	PublisherRule *handler.PublisherRuleHandler
 }
 
 func NewRouter(h *Handlers, auth *middleware.Auth) http.Handler {
@@ -42,6 +45,37 @@ func NewRouter(h *Handlers, auth *middleware.Auth) http.Handler {
 		r.Route("/orgs/{id}/invites", func(r chi.Router) {
 			r.Use(auth.RequireRole("admin", "owner"))
 			r.Post("/", h.OrgInvite.Create)
+		})
+
+		r.Route("/publisher-apps", func(r chi.Router) {
+			// Viewer+ can list and read.
+			r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.PublisherApp.List)
+			// Editor+ can create.
+			r.With(auth.RequireRole("editor", "admin", "owner")).Post("/", h.PublisherApp.Create)
+
+			r.Route("/{id}", func(r chi.Router) {
+				r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.PublisherApp.GetByID)
+				r.With(auth.RequireRole("editor", "admin", "owner")).Put("/", h.PublisherApp.Update)
+
+				// API Keys sub-resource.
+				r.Route("/api-keys", func(r chi.Router) {
+					r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.APIKey.List)
+					r.With(auth.RequireRole("editor", "admin", "owner")).Post("/", h.APIKey.Create)
+					r.With(auth.RequireRole("admin", "owner")).Delete("/{keyId}", h.APIKey.Revoke)
+				})
+
+				// Rules sub-resource.
+				r.Route("/rules", func(r chi.Router) {
+					r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.PublisherRule.List)
+					r.With(auth.RequireRole("editor", "admin", "owner")).Post("/", h.PublisherRule.Create)
+
+					r.Route("/{ruleId}", func(r chi.Router) {
+						r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.PublisherRule.GetByID)
+						r.With(auth.RequireRole("editor", "admin", "owner")).Put("/", h.PublisherRule.Update)
+						r.With(auth.RequireRole("admin", "owner")).Delete("/", h.PublisherRule.Delete)
+					})
+				})
+			})
 		})
 	})
 

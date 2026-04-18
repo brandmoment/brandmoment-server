@@ -8,6 +8,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ApiKey struct {
+	ID        pgtype.UUID        `json:"id"`
+	OrgID     pgtype.UUID        `json:"org_id"`
+	AppID     pgtype.UUID        `json:"app_id"`
+	Name      string             `json:"name"`
+	KeyHash   string             `json:"key_hash"`
+	KeyPrefix string             `json:"key_prefix"`
+	IsRevoked bool               `json:"is_revoked"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+}
+
 type OrgInvite struct {
 	ID         pgtype.UUID        `json:"id"`
 	OrgID      pgtype.UUID        `json:"org_id"`
@@ -32,6 +44,28 @@ type Organization struct {
 	Type      string             `json:"type"`
 	Name      string             `json:"name"`
 	Slug      string             `json:"slug"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PublisherApp struct {
+	ID        pgtype.UUID        `json:"id"`
+	OrgID     pgtype.UUID        `json:"org_id"`
+	Name      string             `json:"name"`
+	Platform  string             `json:"platform"`
+	BundleID  string             `json:"bundle_id"`
+	IsActive  bool               `json:"is_active"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PublisherRule struct {
+	ID        pgtype.UUID        `json:"id"`
+	OrgID     pgtype.UUID        `json:"org_id"`
+	AppID     pgtype.UUID        `json:"app_id"`
+	Type      string             `json:"type"`
+	Config    []byte             `json:"config"`
+	IsActive  bool               `json:"is_active"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
