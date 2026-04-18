@@ -115,7 +115,7 @@ Defined in `.claude/agents/`. Launched via `Agent` tool.
 
 ### Delegation
 
-Main orchestrates; agents execute. Main NEVER writes code, runs tests, reads code for diagnosis, or writes reports directly. Agent launch is mandatory at every stage — no shortcuts even for trivial tasks.
+Main orchestrates; agents execute. Main NEVER writes source code, runs tests, reads code for diagnosis, or writes reports directly. Main MAY write docs and synthesis files (`02-analyze.md`, `02-plan.md`). Agent launch is mandatory at every stage — no shortcuts even for trivial tasks.
 
 ### Validation Checks (used by `test-runner`)
 
