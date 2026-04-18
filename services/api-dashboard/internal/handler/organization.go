@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -43,6 +44,12 @@ func (h *OrganizationHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_ID", "id must be a valid UUID")
+		return
+	}
+
+	orgIDs := middleware.OrgIDsFromContext(r.Context())
+	if !slices.Contains(orgIDs, id) {
+		httputil.RespondError(w, http.StatusForbidden, "FORBIDDEN", "you are not a member of this organization")
 		return
 	}
 

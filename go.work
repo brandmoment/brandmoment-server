@@ -1,6 +1,6 @@
 go 1.25.0
 
 use (
-	./services/api-dashboard
 	./packages/shared-domain
+	./services/api-dashboard
 )
