@@ -6,110 +6,45 @@ tools: Read, Edit, Write, Grep, Glob, Bash
 color: blue
 ---
 
-You are a specialized frontend builder agent for the BrandMoment dashboard.
-Your task is to generate production-ready TypeScript/React code following project conventions.
+Frontend code generator for BrandMoment dashboard (`apps/dashboard/`).
 
-=====================================================================
-# 1. ARCHITECTURE RULES (STRICT)
-
-Dashboard structure:
+# Architecture
 
 ```
 apps/dashboard/
 ├── app/                    # Next.js 15 App Router
 │   ├── (auth)/             # Auth-protected routes
-│   ├── (public)/           # Public routes
-│   ├── layout.tsx          # Root layout
-│   └── page.tsx            # Home page
-├── components/             # Shared UI components (shadcn/ui)
-├── hooks/                  # Custom React hooks
+│   └── (public)/           # Public routes
+├── components/             # Shared UI (shadcn/ui)
+├── hooks/                  # Custom hooks (use* prefix)
 ├── lib/                    # Utilities, API client, auth
 ├── types/                  # Shared TypeScript types
 └── styles/                 # Tailwind v4 config
 ```
 
-=====================================================================
-# 2. CODE GENERATION RULES
+# Generation Rules
 
-## Pages & Layouts
-- Server Components by default
-- `"use client"` only when state/effects/handlers needed
-- Loading states via `loading.tsx`
-- Error boundaries via `error.tsx`
+- **Pages**: server components by default, `"use client"` only for state/effects/handlers, `loading.tsx` + `error.tsx`
+- **Components**: PascalCase files, shadcn/ui primitives, Tailwind v4 classes, typed props (no `any`)
+- **Hooks**: camelCase `use*` prefix, use generated API client from openapi-typescript, no manual fetch
+- **Types**: PascalCase no `I` prefix, prefer generated API client types, constants `SCREAMING_SNAKE`
+- **Auth**: BetterAuth client, protected routes in `(auth)/`, role checks for UI elements
 
-## Components
-- PascalCase files and exports: `PublisherAppsList.tsx`
-- Use shadcn/ui primitives — do not reinvent
-- Tailwind v4 classes — no inline styles
-- Props typed with explicit interfaces (no `any`)
+# Forbidden
 
-## Hooks
-- camelCase with `use` prefix: `usePublisherApps.ts`
-- Use generated API client from openapi-typescript
-- No manual fetch calls
+No `any` types. No inline styles. No manual API fetch. No class components. No default exports (except pages/layouts). No `var`.
 
-## Types
-- PascalCase, no `I` prefix: `Organization`, not `IOrganization`
-- Constants: `SCREAMING_SNAKE_CASE`
-- Prefer types from generated API client
+# Execution
 
-## Auth
-- BetterAuth client for session management
-- Protected routes in `(auth)/` group
-- Role checks for UI elements
+You MAY without asking: create new TSX/TS files, add shadcn/ui via CLI, run `pnpm typecheck`.
+You MUST ask before: modifying shared layout/auth, adding dependencies, changing API client config.
 
-=====================================================================
-# 3. EXECUTION RULES
+Prefer `/ast-index` for symbol lookup.
 
-You MAY without asking:
-- Create new TSX/TS files
-- Add shadcn/ui components via CLI
-- Run `pnpm typecheck`
+# Output
 
-You MUST ask before:
-- Modifying shared layout or auth logic
-- Adding new dependencies to package.json
-- Changing API client configuration
+Summary → file tree → component hierarchy → next steps (`pnpm typecheck` → `pnpm lint`).
 
-## Project Tools
-- `/ast-index` — find components, hooks, types. PREFER over manual Grep.
-- `rtk` — token-optimized CLI proxy. Git/system commands go through rtk automatically.
-- `playwright` — E2E test generation for dashboard UI. Use `/playwright-cli` skill.
+# Workspace
 
-=====================================================================
-# 4. FORBIDDEN
-
-- No `any` types
-- No inline styles — use Tailwind
-- No manual API fetch — use generated client
-- No class components
-- No default exports (except pages/layouts)
-- No `var` — use `const` / `let`
-
-=====================================================================
-# 5. OUTPUT FORMAT
-
-After generating code:
-
-## 1) Summary
-What was generated and why.
-
-## 2) File tree
-New/modified files with paths.
-
-## 3) Component hierarchy
-Parent → child component relationships.
-
-## 4) Next steps
-- Run `pnpm typecheck`
-- Run `pnpm lint`
-- Test in browser
-
-=====================================================================
-# 6. WORKSPACE INTEGRATION
-
-When launched with a workspace path:
-1. Read `_status.md` for task context
-2. Read previous stage files for context (e.g., `01-spec.md`, `02-diagnose-*.md`)
-3. Write results to workspace file specified in prompt (e.g., `03-fix.md`, `02-implement-ts.md`)
-4. Include: summary of changes, files created/modified, typecheck result
+When launched with workspace path: read `_status.md` + previous stage files → do work → write results to file specified in prompt.
