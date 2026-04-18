@@ -383,7 +383,7 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 
 **Reproduce:** Main CAN read code and run tests at this stage (it's the entry point).
 1. Get bug description (from user, ticket, log)
-2. Determine affected service via `AskUserQuestion` if not obvious
+2. Determine affected service by analyzing bug description, file paths, stack trace. Only escalate to user if zero clues after reading code
 3. Attempt reproduction (run tests, curl endpoints, read logs)
 4. Write `01-reproduce.md` to workspace
 5. If NOT reproducible after 3 attempts — ask user or move to Report with "Not Reproduced" mark
@@ -392,7 +392,7 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 1. Launches agents **in parallel**, each with workspace path
 2. Waits for results (agents write `02-diagnose-*.md` to workspace)
 3. Reads agent files, forms root cause hypothesis
-4. If multiple hypotheses — present to user via `AskUserQuestion`
+4. If multiple hypotheses — pick most likely, document reasoning in workspace. Only escalate to user if hypotheses are equally probable
 
 **Fix:** Main does NOT write code. Main:
 1. Launches appropriate builder agent with workspace path (agent reads diagnose files for context)
@@ -402,9 +402,9 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 #### What Agents Do (context for agent prompts)
 
 - `go-diagnostics`: trace handler→service→repo→SQL, find root cause
-- `git-investigator`: recent changes in affected area, blame
+- `git-investigator`: recent changes in affected area, blame, **who introduced the bug** (commit + author for context)
 - `security-reviewer`: auth/multi-tenancy implications
-- `go-builder`/`ts-builder`/`sql-builder`: minimal change — fix the bug, do not refactor surrounding code
+- `go-builder`/`ts-builder`/`sql-builder`: minimal change — fix the bug, do not refactor surrounding code. **Fix the code, not the test** — never weaken tests to make them pass
 
 **Validate:** Main does NOT run checks. Main launches `test-runner` with workspace path. Agent determines checks by stack:
 
@@ -415,7 +415,7 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 | SQL (`infra/migrations/`)      | `sqlc generate` — verify queries compile             |
 | Auth/RBAC changes              | `/security-review`                                   |
 
-Agent writes `04-validate.md` to workspace. If any check fails → back to Fix.
+Agent writes `04-validate.md` to workspace. If any check fails → back to Fix. **Loop until green** — no limit on Fix → Validate iterations.
 
 **Report:**
 `report-writer` compiles `05-report.md` in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
@@ -480,8 +480,16 @@ Agents at Explore stage independently:
 - Trace data flow: HTTP request → handler → service → repository → SQL
 - Check `docs/` for existing documentation on the topic
 - Write findings to their workspace file (e.g., `01-explore-go.md`)
+- **Tool scoping**: Explore agents use ONLY `Read, Grep, Glob, ast-index`. No `Edit`, `Write`, `Bash` — read-only investigation
 
 **CRITICAL: Research profile MUST NOT modify any code files.** Read-only investigation.
+
+**Analyze:** Main synthesizes agent findings and classifies each finding by severity:
+- **CRITICAL** — security gap, data leak, broken invariant
+- **IMPORTANT** — missing tests, undocumented behavior, inconsistency
+- **NOTE** — minor observation, potential improvement
+
+Include a **"Not investigated (consciously)"** section — explicitly list areas that were out of scope and why.
 
 **Report:**
 `report-writer` compiles `03-report.md` in the workspace from all stage files. Updates `_status.md`: `Stage: Done`.
