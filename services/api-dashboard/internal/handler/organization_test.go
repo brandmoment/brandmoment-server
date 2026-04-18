@@ -7,10 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace/noop"
 
@@ -19,7 +17,6 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/service"
 )
 
-const handlerTestSecret = "handler-test-secret"
 
 // mockOrgRepoForHandler satisfies repository.OrganizationRepository via the same interface
 // that service.OrganizationService accepts, letting handler tests avoid a real DB.
@@ -46,25 +43,6 @@ func newHandlerWithRepo(repo *mockOrgRepoForHandler) *OrganizationHandler {
 	return NewOrganizationHandler(svc)
 }
 
-// makeJWTForOrgs creates a signed JWT with the given org memberships.
-func makeJWTForOrgs(t *testing.T, orgs []middleware.OrgClaim) string {
-	t.Helper()
-	claims := &middleware.Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   uuid.New().String(),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-		Orgs: orgs,
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(handlerTestSecret))
-	if err != nil {
-		t.Fatalf("makeJWTForOrgs: %v", err)
-	}
-	return signed
-}
-
 func decodeRespBody(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
 	t.Helper()
 	var m map[string]any
@@ -80,13 +58,11 @@ func withChiID(r *http.Request, id string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
 
-// applyAuth wraps a handler with ValidateJWT, injects the Bearer token and X-Org-ID header.
-func applyAuth(t *testing.T, h http.Handler, token, xOrgID string) http.Handler {
-	t.Helper()
-	auth := middleware.NewAuth(handlerTestSecret)
-	return auth.ValidateJWT(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r)
-	}))
+// injectAuthContext sets the middleware context values that ValidateJWT normally sets.
+// Used in handler tests to avoid needing a real JWKS endpoint.
+func injectAuthContext(r *http.Request, orgID uuid.UUID, role string, orgIDs []uuid.UUID) *http.Request {
+	ctx := middleware.InjectTestContext(r.Context(), uuid.New(), orgID, role, orgIDs)
+	return r.WithContext(ctx)
 }
 
 // TestOrganizationHandler_Create covers Create endpoint.
@@ -159,15 +135,12 @@ func TestOrganizationHandler_Create(t *testing.T) {
 			}
 			h := newHandlerWithRepo(repo)
 
-			// Build request with auth context (Create does not use orgIDs from context, so any valid JWT is fine)
-			token := makeJWTForOrgs(t, []middleware.OrgClaim{{OrgID: orgID.String(), Role: "owner"}})
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/organizations", bytes.NewReader(bodyBytes))
+			req := httptest.NewRequest(http.MethodPost, "/v1/organizations", bytes.NewReader(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Authorization", "Bearer "+token)
-			req.Header.Set("X-Org-ID", orgID.String())
+			req = injectAuthContext(req, orgID, "owner", []uuid.UUID{orgID})
 
 			w := httptest.NewRecorder()
-			applyAuth(t, http.HandlerFunc(h.Create), token, orgID.String()).ServeHTTP(w, req)
+			h.Create(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("Create() status = %d, want %d", w.Code, tt.wantStatus)
@@ -196,17 +169,17 @@ func TestOrganizationHandler_GetByID(t *testing.T) {
 	tests := []struct {
 		name        string
 		urlID       string
-		memberOrg   uuid.UUID // org that the JWT contains
-		xOrgID      uuid.UUID // active org for request
+		memberOrgs  []uuid.UUID
+		xOrgID      uuid.UUID
 		getByIDFn   func(ctx context.Context, id uuid.UUID) (*model.Organization, error)
 		wantStatus  int
 		wantErrCode string
 	}{
 		{
-			name:      "found organization returns 200",
-			urlID:     orgID.String(),
-			memberOrg: orgID,
-			xOrgID:    orgID,
+			name:       "found organization returns 200",
+			urlID:      orgID.String(),
+			memberOrgs: []uuid.UUID{orgID},
+			xOrgID:     orgID,
 			getByIDFn: func(ctx context.Context, id uuid.UUID) (*model.Organization, error) {
 				return &model.Organization{ID: id, Type: "publisher", Name: "Acme", Slug: "acme"}, nil
 			},
@@ -215,25 +188,24 @@ func TestOrganizationHandler_GetByID(t *testing.T) {
 		{
 			name:        "invalid UUID in URL returns 400",
 			urlID:       "not-a-uuid",
-			memberOrg:   orgID,
+			memberOrgs:  []uuid.UUID{orgID},
 			xOrgID:      orgID,
 			wantStatus:  http.StatusBadRequest,
 			wantErrCode: "INVALID_ID",
 		},
 		{
-			name:      "org not in user memberships returns 403",
-			urlID:     otherOrgID.String(),
-			memberOrg: orgID,
-			xOrgID:    orgID,
-			// memberOrg is orgID but we request otherOrgID — JWT has only orgID
+			name:       "org not in user memberships returns 403",
+			urlID:      otherOrgID.String(),
+			memberOrgs: []uuid.UUID{orgID}, // JWT has only orgID, but we request otherOrgID
+			xOrgID:     orgID,
 			wantStatus:  http.StatusForbidden,
 			wantErrCode: "FORBIDDEN",
 		},
 		{
-			name:      "org found in memberships but not in repo returns 404",
-			urlID:     orgID.String(),
-			memberOrg: orgID,
-			xOrgID:    orgID,
+			name:       "org found in memberships but not in repo returns 404",
+			urlID:      orgID.String(),
+			memberOrgs: []uuid.UUID{orgID},
+			xOrgID:     orgID,
 			getByIDFn: func(ctx context.Context, id uuid.UUID) (*model.Organization, error) {
 				return nil, model.ErrNotFound
 			},
@@ -250,23 +222,12 @@ func TestOrganizationHandler_GetByID(t *testing.T) {
 			}
 			h := newHandlerWithRepo(repo)
 
-			token := makeJWTForOrgs(t, []middleware.OrgClaim{{OrgID: tt.memberOrg.String(), Role: "viewer"}})
-
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations/"+tt.urlID, nil)
-			req.Header.Set("Authorization", "Bearer "+token)
-			req.Header.Set("X-Org-ID", tt.xOrgID.String())
+			req := httptest.NewRequest(http.MethodGet, "/v1/organizations/"+tt.urlID, nil)
+			req = injectAuthContext(req, tt.xOrgID, "viewer", tt.memberOrgs)
 			req = withChiID(req, tt.urlID)
 
-			// Chain: ValidateJWT (sets context) → GetByID handler
-			auth := middleware.NewAuth(handlerTestSecret)
-			chain := auth.ValidateJWT(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// re-attach chi context after middleware replaces r's context
-				r = withChiID(r, tt.urlID)
-				h.GetByID(w, r)
-			}))
-
 			w := httptest.NewRecorder()
-			chain.ServeHTTP(w, req)
+			h.GetByID(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("GetByID() status = %d, want %d", w.Code, tt.wantStatus)
@@ -294,7 +255,7 @@ func TestOrganizationHandler_List(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		memberOrgs  []middleware.OrgClaim
+		memberOrgs  []uuid.UUID
 		xOrgID      uuid.UUID
 		listFn      func(ctx context.Context, ids []uuid.UUID) ([]model.Organization, error)
 		wantStatus  int
@@ -302,7 +263,7 @@ func TestOrganizationHandler_List(t *testing.T) {
 	}{
 		{
 			name:       "returns organizations for user memberships",
-			memberOrgs: []middleware.OrgClaim{{OrgID: org1.String(), Role: "owner"}, {OrgID: org2.String(), Role: "viewer"}},
+			memberOrgs: []uuid.UUID{org1, org2},
 			xOrgID:     org1,
 			listFn: func(ctx context.Context, ids []uuid.UUID) ([]model.Organization, error) {
 				orgs := make([]model.Organization, len(ids))
@@ -315,7 +276,7 @@ func TestOrganizationHandler_List(t *testing.T) {
 		},
 		{
 			name:       "single membership returns one organization",
-			memberOrgs: []middleware.OrgClaim{{OrgID: org1.String(), Role: "editor"}},
+			memberOrgs: []uuid.UUID{org1},
 			xOrgID:     org1,
 			listFn: func(ctx context.Context, ids []uuid.UUID) ([]model.Organization, error) {
 				return []model.Organization{{ID: ids[0], Type: "brand", Name: "BrandX", Slug: "brandx"}}, nil
@@ -324,7 +285,7 @@ func TestOrganizationHandler_List(t *testing.T) {
 		},
 		{
 			name:       "repo returns ErrInvalidInput propagated as 400",
-			memberOrgs: []middleware.OrgClaim{{OrgID: org1.String(), Role: "owner"}},
+			memberOrgs: []uuid.UUID{org1},
 			xOrgID:     org1,
 			listFn: func(ctx context.Context, ids []uuid.UUID) ([]model.Organization, error) {
 				return nil, model.ErrInvalidInput
@@ -339,17 +300,11 @@ func TestOrganizationHandler_List(t *testing.T) {
 			repo := &mockOrgRepoForHandler{listFn: tt.listFn}
 			h := newHandlerWithRepo(repo)
 
-			token := makeJWTForOrgs(t, tt.memberOrgs)
-
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/organizations", nil)
-			req.Header.Set("Authorization", "Bearer "+token)
-			req.Header.Set("X-Org-ID", tt.xOrgID.String())
-
-			auth := middleware.NewAuth(handlerTestSecret)
-			chain := auth.ValidateJWT(http.HandlerFunc(h.List))
+			req := httptest.NewRequest(http.MethodGet, "/v1/organizations", nil)
+			req = injectAuthContext(req, tt.xOrgID, "owner", tt.memberOrgs)
 
 			w := httptest.NewRecorder()
-			chain.ServeHTTP(w, req)
+			h.List(w, req)
 
 			if w.Code != tt.wantStatus {
 				t.Errorf("List() status = %d, want %d", w.Code, tt.wantStatus)

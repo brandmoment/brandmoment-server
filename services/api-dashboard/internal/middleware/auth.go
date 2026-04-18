@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
@@ -14,9 +15,11 @@ import (
 type contextKey string
 
 const (
-	ctxOrgID  contextKey = "org_id"
-	ctxRole   contextKey = "role"
-	ctxOrgIDs contextKey = "org_ids"
+	ctxOrgID     contextKey = "org_id"
+	ctxRole      contextKey = "role"
+	ctxOrgIDs    contextKey = "org_ids"
+	ctxUserID    contextKey = "user_id"
+	ctxOrgClaims contextKey = "org_claims"
 )
 
 type OrgClaim struct {
@@ -30,11 +33,15 @@ type Claims struct {
 }
 
 type Auth struct {
-	jwtSecret []byte
+	jwks keyfunc.Keyfunc
 }
 
-func NewAuth(jwtSecret string) *Auth {
-	return &Auth{jwtSecret: []byte(jwtSecret)}
+func NewAuth(jwksURL string) (*Auth, error) {
+	k, err := keyfunc.NewDefault([]string{jwksURL})
+	if err != nil {
+		return nil, err
+	}
+	return &Auth{jwks: k}, nil
 }
 
 func (a *Auth) ValidateJWT(next http.Handler) http.Handler {
@@ -48,11 +55,21 @@ func (a *Auth) ValidateJWT(next http.Handler) http.Handler {
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
 		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (any, error) {
-			return a.jwtSecret, nil
-		})
+		token, err := jwt.ParseWithClaims(tokenStr, claims, a.jwks.Keyfunc)
 		if err != nil || !token.Valid {
 			httputil.RespondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid token")
+			return
+		}
+
+		// Parse user ID from sub claim
+		subStr, err := claims.GetSubject()
+		if err != nil || subStr == "" {
+			httputil.RespondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "missing sub claim")
+			return
+		}
+		userID, err := uuid.Parse(subStr)
+		if err != nil {
+			httputil.RespondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "sub claim is not a valid UUID")
 			return
 		}
 
@@ -87,9 +104,11 @@ func (a *Auth) ValidateJWT(next http.Handler) http.Handler {
 		}
 
 		ctx := r.Context()
+		ctx = context.WithValue(ctx, ctxUserID, userID)
 		ctx = context.WithValue(ctx, ctxOrgID, orgID)
 		ctx = context.WithValue(ctx, ctxRole, role)
 		ctx = context.WithValue(ctx, ctxOrgIDs, orgIDs)
+		ctx = context.WithValue(ctx, ctxOrgClaims, claims.Orgs)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -107,6 +126,16 @@ func (a *Auth) RequireRole(roles ...string) func(http.Handler) http.Handler {
 			httputil.RespondError(w, http.StatusForbidden, "FORBIDDEN", "insufficient permissions")
 		})
 	}
+}
+
+func UserIDFromContext(ctx context.Context) uuid.UUID {
+	id, _ := ctx.Value(ctxUserID).(uuid.UUID)
+	return id
+}
+
+func OrgClaimsFromContext(ctx context.Context) []OrgClaim {
+	claims, _ := ctx.Value(ctxOrgClaims).([]OrgClaim)
+	return claims
 }
 
 func OrgIDFromContext(ctx context.Context) uuid.UUID {

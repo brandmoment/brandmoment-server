@@ -50,17 +50,35 @@ func main() {
 	defer tp.Shutdown(ctx)
 	otel.SetTracerProvider(tp)
 
-	// DI
+	// Auth middleware (JWKS)
+	auth, err := middleware.NewAuth(cfg.BetterAuthJWKSURL)
+	if err != nil {
+		slog.Error("failed to initialize JWKS auth", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	// DI — organizations
 	orgRepo := repository.NewOrganizationRepository(pool)
 	orgService := service.NewOrganizationService(orgRepo, tp)
 	orgHandler := handler.NewOrganizationHandler(orgService)
-	healthHandler := handler.NewHealthHandler()
 
-	auth := middleware.NewAuth(cfg.JWTSecret)
+	// DI — users
+	userRepo := repository.NewUserRepository(pool)
+	userService := service.NewUserService(userRepo, tp)
+	userHandler := handler.NewUserHandler(userService)
+
+	// DI — org invites
+	orgInviteRepo := repository.NewOrgInviteRepository(pool)
+	orgInviteService := service.NewOrgInviteService(orgInviteRepo, tp)
+	orgInviteHandler := handler.NewOrgInviteHandler(orgInviteService)
+
+	healthHandler := handler.NewHealthHandler()
 
 	mux := router.NewRouter(&router.Handlers{
 		Health:       healthHandler,
 		Organization: orgHandler,
+		User:         userHandler,
+		OrgInvite:    orgInviteHandler,
 	}, auth)
 
 	srv := &http.Server{

@@ -1,0 +1,562 @@
+openapi: 3.1.0
+
+info:
+  title: BrandMoment Dashboard API
+  version: 1.0.0
+  description: |
+    REST API for the BrandMoment multi-tenant dashboard.
+    All authenticated endpoints require a valid JWT (issued by BetterAuth) in the
+    Authorization header and an X-Org-ID header identifying the active organization.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://api.brandmoment.ai
+    description: Production
+
+# ---------------------------------------------------------------------------
+# Security schemes
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT issued by BetterAuth. Validated against the BetterAuth JWKS endpoint.
+        Claims include `sub` (user UUID) and `orgs` (array of {org_id, role}).
+
+  parameters:
+    OrgIDHeader:
+      name: X-Org-ID
+      in: header
+      required: true
+      description: UUID of the organization the user is acting on behalf of. Must match one of the org_ids in the JWT claims.
+      schema:
+        type: string
+        format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
+
+    PathID:
+      name: id
+      in: path
+      required: true
+      description: UUID of the resource.
+      schema:
+        type: string
+        format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
+
+  # -------------------------------------------------------------------------
+  # Reusable schemas
+  # -------------------------------------------------------------------------
+  schemas:
+
+    # --- Domain models -------------------------------------------------------
+
+    Organization:
+      type: object
+      required: [id, type, name, slug, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        type:
+          type: string
+          enum: [admin, publisher, brand]
+          description: Organization type.
+          example: brand
+        name:
+          type: string
+          example: Acme Corp
+        slug:
+          type: string
+          example: acme-corp
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T09:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-03-20T14:22:00Z"
+
+    OrgMembershipEntry:
+      type: object
+      required: [org_id, role]
+      properties:
+        org_id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        role:
+          type: string
+          enum: [owner, admin, editor, viewer]
+          example: editor
+
+    User:
+      type: object
+      required: [id, email, name, created_at, orgs]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        name:
+          type: string
+          example: Alice Smith
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+        orgs:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrgMembershipEntry'
+
+    OrgInvite:
+      type: object
+      required: [id, org_id, email, role, token, expires_at, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+        org_id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          example: bob@example.com
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+          description: Role assigned when the invite is accepted. Owner cannot be assigned via invite.
+          example: editor
+        token:
+          type: string
+          description: Opaque random token used to accept the invite.
+          example: dGhpcyBpcyBhIHRlc3QgdG9rZW4
+        expires_at:
+          type: string
+          format: date-time
+          example: "2024-01-22T00:00:00Z"
+        accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T09:30:00Z"
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+
+    # --- Request bodies -------------------------------------------------------
+
+    CreateOrganizationRequest:
+      type: object
+      required: [type, name, slug]
+      properties:
+        type:
+          type: string
+          enum: [admin, publisher, brand]
+          example: brand
+        name:
+          type: string
+          example: Acme Corp
+        slug:
+          type: string
+          example: acme-corp
+
+    CreateInviteRequest:
+      type: object
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          format: email
+          example: bob@example.com
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+          description: Owner role cannot be assigned via invite.
+          example: editor
+
+    # --- Response envelopes --------------------------------------------------
+
+    OrganizationResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Organization'
+
+    OrganizationListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+
+    UserResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+
+    OrgInviteResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/OrgInvite'
+
+    HealthEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/HealthResponse'
+
+    # --- Error envelope -------------------------------------------------------
+
+    ErrorBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error description.
+          example: resource not found
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+
+  # -------------------------------------------------------------------------
+  # Reusable responses
+  # -------------------------------------------------------------------------
+  responses:
+    BadRequest:
+      description: Invalid request body or parameter.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INVALID_BODY
+              message: failed to decode request
+
+    Unauthorized:
+      description: Missing or invalid JWT.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: unauthorized
+
+    Forbidden:
+      description: Authenticated user lacks the required role.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: FORBIDDEN
+              message: insufficient permissions
+
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: not found
+
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: internal server error
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+
+  # --------------------------------------------------------------------------
+  # Health check — no auth
+  # --------------------------------------------------------------------------
+  /healthz:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      description: Returns 200 OK when the service is running. No authentication required.
+      tags: [Health]
+      responses:
+        '200':
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEnvelope'
+              example:
+                data:
+                  status: ok
+
+  # --------------------------------------------------------------------------
+  # Authenticated endpoints — all require bearerAuth + X-Org-ID
+  # --------------------------------------------------------------------------
+
+  /v1/me:
+    get:
+      operationId: getMe
+      summary: Get current user
+      description: |
+        Returns the authenticated user's profile along with all organization
+        memberships from the JWT claims.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIDHeader'
+      responses:
+        '200':
+          description: Current user profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              example:
+                data:
+                  id: 6ba7b810-9dad-11d1-80b4-00c04fd430c8
+                  email: alice@example.com
+                  name: Alice Smith
+                  created_at: "2024-01-01T00:00:00Z"
+                  orgs:
+                    - org_id: 550e8400-e29b-41d4-a716-446655440000
+                      role: owner
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/organizations:
+    post:
+      operationId: createOrganization
+      summary: Create organization
+      description: |
+        Creates a new organization. Requires at least viewer role on the active org.
+        Type must be one of: admin, publisher, brand.
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+            example:
+              type: brand
+              name: Acme Corp
+              slug: acme-corp
+      responses:
+        '201':
+          description: Organization created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+              example:
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  type: brand
+                  name: Acme Corp
+                  slug: acme-corp
+                  created_at: "2024-01-15T09:30:00Z"
+                  updated_at: "2024-01-15T09:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listOrganizations
+      summary: List organizations
+      description: |
+        Returns all organizations the authenticated user is a member of.
+        The list is derived from the org_ids present in the JWT claims.
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIDHeader'
+      responses:
+        '200':
+          description: List of organizations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
+              example:
+                data:
+                  - id: 550e8400-e29b-41d4-a716-446655440000
+                    type: brand
+                    name: Acme Corp
+                    slug: acme-corp
+                    created_at: "2024-01-15T09:30:00Z"
+                    updated_at: "2024-01-15T09:30:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/organizations/{id}:
+    get:
+      operationId: getOrganizationByID
+      summary: Get organization by ID
+      description: |
+        Returns a single organization. The caller must be a member of the
+        requested organization (verified against JWT org_ids). Returns 403 if
+        the caller is not a member.
+      tags: [Organizations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIDHeader'
+        - $ref: '#/components/parameters/PathID'
+      responses:
+        '200':
+          description: Organization found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationResponse'
+              example:
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  type: brand
+                  name: Acme Corp
+                  slug: acme-corp
+                  created_at: "2024-01-15T09:30:00Z"
+                  updated_at: "2024-01-15T09:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/orgs/{id}/invites:
+    post:
+      operationId: createOrgInvite
+      summary: Invite a user to an organization
+      description: |
+        Creates a new invite for the specified organization. Requires admin or
+        owner role. The owner role cannot be assigned via invite — valid roles
+        are admin, editor, and viewer. Invite token expires after 7 days.
+      tags: [Invites]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrgIDHeader'
+        - $ref: '#/components/parameters/PathID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteRequest'
+            example:
+              email: bob@example.com
+              role: editor
+      responses:
+        '201':
+          description: Invite created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgInviteResponse'
+              example:
+                data:
+                  id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  org_id: 550e8400-e29b-41d4-a716-446655440000
+                  email: bob@example.com
+                  role: editor
+                  token: dGhpcyBpcyBhIHRlc3QgdG9rZW4
+                  expires_at: "2024-01-22T09:30:00Z"
+                  accepted_at: null
+                  created_at: "2024-01-15T09:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+# ---------------------------------------------------------------------------
+# Tag descriptions
+# ---------------------------------------------------------------------------
+tags:
+  - name: Health
+    description: Liveness probe — no authentication required.
+  - name: Users
+    description: Authenticated user profile.
+  - name: Organizations
+    description: Organization management. Access is controlled by JWT membership.
+  - name: Invites
+    description: Organization invite management. Requires admin or owner role.

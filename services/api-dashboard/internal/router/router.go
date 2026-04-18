@@ -14,6 +14,8 @@ import (
 type Handlers struct {
 	Health       *handler.HealthHandler
 	Organization *handler.OrganizationHandler
+	User         *handler.UserHandler
+	OrgInvite    *handler.OrgInviteHandler
 }
 
 func NewRouter(h *Handlers, auth *middleware.Auth) http.Handler {
@@ -25,14 +27,21 @@ func NewRouter(h *Handlers, auth *middleware.Auth) http.Handler {
 
 	r.Get("/healthz", h.Health.Check)
 
-	r.Route("/api/v1", func(r chi.Router) {
+	r.Route("/v1", func(r chi.Router) {
 		r.Use(auth.ValidateJWT)
+
+		r.Get("/me", h.User.GetMe)
 
 		r.Route("/organizations", func(r chi.Router) {
 			r.Use(auth.RequireRole("viewer", "editor", "admin", "owner"))
 			r.Post("/", h.Organization.Create)
 			r.Get("/", h.Organization.List)
 			r.Get("/{id}", h.Organization.GetByID)
+		})
+
+		r.Route("/orgs/{id}/invites", func(r chi.Router) {
+			r.Use(auth.RequireRole("admin", "owner"))
+			r.Post("/", h.OrgInvite.Create)
 		})
 	})
 
