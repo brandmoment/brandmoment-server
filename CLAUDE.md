@@ -357,6 +357,7 @@ input: <what the agent needs to know — file paths, root cause, etc.>
 8. **Cross-session recovery**: new session scans `reports/*/_status.md` for tasks where Stage is not `Done` → offers to continue
 9. **Agents first**: launch agents as early as possible. Workspace files and `_status.md` can be written in parallel with agent launches or after them — never delay agent work for bookkeeping
 10. **No TaskCreate for simple profiles**: for profiles with ≤5 stages, skip TaskCreate — `_status.md` and stage transitions provide sufficient tracking
+11. **Background agent lifecycle**: when agents are launched with `run_in_background: true`, main MUST wait for the task-notification before reading their workspace files. Do NOT poll, check output files, or attempt to extract results before notification arrives. While waiting — write `_status.md` or do other bookkeeping, but do NOT launch additional agents or investigation for the same stage
 
 ### Slug Convention
 
@@ -743,6 +744,8 @@ Violations:
 - Main runs `go test`/`npx playwright test` instead of launching `test-runner` → **FORBIDDEN**
 - Main writes smoke scenarios instead of launching `e2e-test-writer` → **FORBIDDEN**
 - Main reads previous workspace spec/implement files "for context" → **FORBIDDEN** (agents read those themselves)
+- Main launches additional Explore/diagnostics/analyzer agents outside "Agents by Stage" table for the current stage → **FORBIDDEN**
+- Main "pre-checks" what exists in the repo (e2e infra, test files, configs) instead of letting scan agents discover and report → **FORBIDDEN**
 
 #### Agents by Stage
 
