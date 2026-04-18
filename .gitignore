@@ -13,3 +13,4 @@ tmp/
 go.work.sum
 task.txt
 reports/peer-repos-review-*.md
+test-results/
