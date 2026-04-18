@@ -54,13 +54,15 @@ If any tool is missing — **stop and report** which tools need to be installed.
 
 ## Post-generation Checks
 
-After generating code, always verify:
+For ad-hoc requests (outside profiles), verify after generating code:
 
 1. `go build ./...` — compiles without errors
 2. `go vet ./...` — no static analysis issues
 3. `go test ./...` — all tests pass
 4. Run `/simplify` — check for code duplication and quality
 5. Run `/security-review` — check multi-tenancy isolation and auth
+
+When working within a profile — validation is handled by agents (see profile workflows).
 
 ## New Entity Checklist
 
@@ -282,7 +284,8 @@ reports/<slug>/
   # Research example:
   01-explore-go.md        ← go-diagnostics
   01-explore-docs.md      ← docs-analyzer
-  02-report.md            ← report-writer
+  02-analyze.md           ← main (synthesis)
+  03-report.md            ← report-writer
 
   # Update Docs example:
   01-analyze-docs.md      ← docs-analyzer
@@ -380,10 +383,10 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 
 **Reproduce:** Main CAN read code and run tests at this stage (it's the entry point).
 1. Get bug description (from user, ticket, log)
-3. Determine affected service via `AskUserQuestion` if not obvious
-4. Attempt reproduction (run tests, curl endpoints, read logs)
-5. Write `01-reproduce.md` to workspace
-6. If NOT reproducible after 3 attempts — ask user or move to Report with "Not Reproduced" mark
+2. Determine affected service via `AskUserQuestion` if not obvious
+3. Attempt reproduction (run tests, curl endpoints, read logs)
+4. Write `01-reproduce.md` to workspace
+5. If NOT reproducible after 3 attempts — ask user or move to Report with "Not Reproduced" mark
 
 **Diagnose:** Main does NOT investigate. Main:
 1. Launches agents **in parallel**, each with workspace path
@@ -462,10 +465,10 @@ Select agents by topic relevance (not all 5 every time), but at least 2 agents M
 
 **Explore:** Main does NOT read code or trace flows. Main:
 1. Selects relevant agents by topic (at least 2)
-3. Launches agents in parallel, each with: workspace path + question + scope
-4. Waits for results
+2. Launches agents in parallel, each with: workspace path + question + scope
+3. Waits for results
 
-**Analyze:** Main reads agent output files from workspace, synthesizes into structured answer.
+**Analyze:** Main reads agent output files from workspace, synthesizes into structured answer. Writes `02-analyze.md` to workspace.
 
 **Report:** Main launches `report-writer` with workspace path.
 
@@ -481,7 +484,7 @@ Agents at Explore stage independently:
 **CRITICAL: Research profile MUST NOT modify any code files.** Read-only investigation.
 
 **Report:**
-`report-writer` compiles `03-report.md` in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
+`report-writer` compiles `03-report.md` in the workspace from all stage files. Updates `_status.md`: `Stage: Done`.
 
 ---
 
@@ -534,8 +537,8 @@ All agents listed in the "Agents by Stage" table for a given stage MUST be launc
 
 **Analyze Code:** Main does NOT read code or compare with docs. Main:
 1. Launches agents in parallel, each with workspace path
-3. Waits for results (agents write `01-analyze-*.md` to workspace)
-4. Reads agent files
+2. Waits for results (agents write `01-analyze-*.md` to workspace)
+3. Reads agent files
 
 **Plan Changes:** Main reads agent analysis files from workspace, then:
 1. Lists docs sections to create or update
