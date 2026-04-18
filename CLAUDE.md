@@ -315,7 +315,8 @@ reports/<slug>/
   05-report.md            ← report-writer
 
   # Verification example:
-  01-scan.md              ← main (what changed)
+  01-scan-go.md           ← go-diagnostics (what changed in Go)
+  01-scan-git.md          ← git-investigator (recent commits)
   02-update-smoke.md      ← e2e-test-writer (new scenarios)
   03-run.md               ← test-runner (all results)
   04-report.md            ← report-writer (unified report)
@@ -348,10 +349,14 @@ input: <what the agent needs to know — file paths, root cause, etc.>
 2. **Each agent writes its own file** — numbered by stage, suffixed by agent name
 3. **Agents read previous files** for context instead of receiving a rephrased summary from main
 4. **Main passes workspace path** to each agent in the prompt: "Workspace: `./reports/<slug>/`. Read previous stage files for context."
+   - Main does NOT pre-read agent output files or prior spec files "for context" — this wastes main's context window and duplicates work agents will do
+   - Main reads ONLY its own stage output (e.g., `01-reproduce.md`, `01-scan.md`) and agent results AFTER agents finish
 5. **Parallel agents** write to separate files (e.g., `02-diagnose-go.md`, `02-diagnose-sec.md`) — no race conditions
 6. **Loop iterations**: when revisiting a stage, agent **overwrites** its file (e.g., `03-fix.md` is replaced, not duplicated as `03-fix-v2.md`)
 7. **Empty agent result**: if an agent returns with no findings, main notes "no issues found" and proceeds — do not re-launch or block
 8. **Cross-session recovery**: new session scans `reports/*/_status.md` for tasks where Stage is not `Done` → offers to continue
+9. **Agents first**: launch agents as early as possible. Workspace files and `_status.md` can be written in parallel with agent launches or after them — never delay agent work for bookkeeping
+10. **No TaskCreate for simple profiles**: for profiles with ≤5 stages, skip TaskCreate — `_status.md` and stage transitions provide sufficient tracking
 
 ### Slug Convention
 
@@ -731,32 +736,38 @@ All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
 
 #### Agent Launch Policy (MANDATORY)
 
-Main orchestrates; agents execute. Main does NOT run tests or write scenarios itself.
+Main orchestrates; agents execute. Main does NOT run tests, read code, or write scenarios itself.
+
+Violations:
+- Main runs `git diff` or reads code instead of launching `git-investigator` + diagnostics agents → **FORBIDDEN**
+- Main runs `go test`/`npx playwright test` instead of launching `test-runner` → **FORBIDDEN**
+- Main writes smoke scenarios instead of launching `e2e-test-writer` → **FORBIDDEN**
+- Main reads previous workspace spec/implement files "for context" → **FORBIDDEN** (agents read those themselves)
 
 #### Agents by Stage
 
-| Stage        | Agents                    | Role                                     |
-|--------------|---------------------------|------------------------------------------|
-| Scan         | main                      | Detect what changed (git diff, user input) |
-| Update Smoke | `e2e-test-writer` (Mode B)  | Generate new scenarios for changed features |
-| Run          | `test-runner`             | Run ALL checks: go test + playwright + lint |
-| Report       | `report-writer`           | Unified report with results + screenshots  |
+| Stage        | Agents                                                              | Role                                     |
+|--------------|---------------------------------------------------------------------|------------------------------------------|
+| Scan         | (`go-diagnostics` or `ts-diagnostics`) + `git-investigator`         | Detect what changed, find affected areas  |
+| Update Smoke | `e2e-test-writer` (Mode B)                                          | Generate new scenarios for changed features |
+| Run          | `test-runner`                                                       | Run ALL checks: go test + playwright + lint |
+| Report       | `report-writer`                                                     | Unified report with results + screenshots  |
 
 #### Main's Job at Each Stage
 
-**Scan:** Main determines what changed:
-1. Run `git diff main...HEAD --stat` to see changed files
-2. Classify changes by stack (Go, TypeScript, SQL)
-3. Determine if new user-facing features were added (new pages, components, endpoints)
+**Scan:** Main does NOT read code or run git commands. Main:
+1. Launches diagnostic agents in parallel:
+   - `go-diagnostics` or `ts-diagnostics` (by stack) — read changed files, identify affected areas, classify by stack
+   - `git-investigator` — recent commits, what was added/modified, new features detected
+2. Agents write `01-scan-*.md` to workspace
+3. Main reads agent results, determines if new UI features exist
 4. If new features → Update Smoke. If only backend/infra → skip to Run
-5. Write `01-scan.md` to workspace with: changed files, affected stacks, new features detected
 
 **Update Smoke:** Main does NOT write scenarios. Main:
-1. Launches `e2e-test-writer` with workspace path
-2. Agent reads `01-scan.md` to understand what changed
-3. Agent reads changed UI components to generate new scenarios
-4. Agent appends scenarios to `tests/smoke/scenarios.md`, writes `.spec.ts`
-5. Agent writes `02-update-smoke.md` to workspace
+1. Launches `e2e-test-writer` with workspace path + scan summary in prompt
+2. Agent reads changed UI components to generate new scenarios
+3. Agent appends scenarios to `tests/smoke/scenarios.md`, writes `.spec.ts`
+4. Agent writes `02-update-smoke.md` to workspace
 
 **Run:** Main does NOT run checks. Main launches `test-runner` with workspace path. Agent runs ALL checks:
 
@@ -786,7 +797,8 @@ Updates `_status.md`: `Stage: Done`.
 ```
 reports/<slug>/
   _status.md              ← current state
-  01-scan.md              ← main (what changed)
+  01-scan-go.md           ← go-diagnostics (affected Go areas)
+  01-scan-git.md          ← git-investigator (recent commits, new features)
   02-update-smoke.md      ← e2e-test-writer (new scenarios)
   03-run.md               ← test-runner (all results)
   04-report.md            ← report-writer (unified report)
