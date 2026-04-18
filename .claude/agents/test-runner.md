@@ -96,3 +96,11 @@ For each failure:
 - **File:Line**: where the error is
 - **Root Cause**: why it fails
 - **Suggested Fix**: what to change
+
+=====================================================================
+# 5. WORKSPACE INTEGRATION
+
+When launched with a workspace path:
+1. Read previous stage files for context (fix, test, implement files)
+2. Write results to workspace file (e.g., `04-validate.md` or `05-validate.md`)
+3. Include full results table and failure details in workspace file

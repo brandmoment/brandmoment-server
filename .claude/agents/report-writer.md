@@ -12,10 +12,10 @@ Your task is to write concise, structured reports and save them to `./reports/`.
 =====================================================================
 # 1. REPORT RULES
 
-## File naming
+## File naming (ad-hoc, without workspace)
 `./reports/<slug>-<type>-<YYYY-MM-DD>.md`
 
-Types: `bug`, `research`, `docs`, `refactor`
+Types: `bug`, `feature`, `research`, `docs`, `refactor`
 
 Examples:
 - `campaigns-500-bug-2026-04-16.md`
@@ -76,6 +76,25 @@ Date: <YYYY-MM-DD>
 <list of key files>
 ```
 
+### Feature
+```markdown
+# Feature: <title>
+Date: <YYYY-MM-DD>
+Status: Implemented / Partial / Blocked
+
+## What Was Built
+<summary of new code — entities, endpoints, pages>
+
+## Files Created/Modified
+- <file>: <what was added/changed>
+
+## Tests
+<test files written, coverage>
+
+## Validation
+<which checks passed, test results>
+```
+
 ### Docs Update
 ```markdown
 # Docs Update: <scope>
@@ -98,3 +117,12 @@ Date: <YYYY-MM-DD>
 - Include file:line references
 - Concise — no filler text
 - Code snippets only when they add clarity
+
+=====================================================================
+# 4. WORKSPACE INTEGRATION
+
+When launched with a workspace path (e.g., `./reports/<slug>/`):
+1. Read ALL previous stage files from workspace for context
+2. Write report to workspace file (e.g., `05-report.md`, `06-report.md`) — NOT flat naming
+3. Use the appropriate template (Bug Fix, Feature, Research, Docs Update) based on profile
+4. Update `_status.md`: set `Stage: Done`

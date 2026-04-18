@@ -214,6 +214,7 @@ Each request is processed within ONE profile. Profile is determined combinationa
    - Bug, error, crash, not working, breaks, exception, stacktrace, 500, regression → **Bug Fix**
    - How, what, where, why, explain, research, investigate, describe, find → **Research**
    - Docs, document, update docs, sync docs, write docs, README → **Update Docs**
+   - Add, create, implement, build, new feature, new endpoint, new entity → **Feature**
 2. If auto-detected with high confidence (clear keywords match) — **proceed immediately**, no confirmation needed. Log: `[Profile: <name>]`
 3. If ambiguous (multiple profiles match or no clear keywords) — confirm via `AskUserQuestion`
 4. User can explicitly specify a profile — always proceed immediately
@@ -224,6 +225,7 @@ Each request is processed within ONE profile. Profile is determined combinationa
 | Profile     | When to Use                                                        |
 |-------------|--------------------------------------------------------------------|
 | Bug Fix     | Bug, regression, crash, unexpected behavior, broken endpoint       |
+| Feature     | New endpoint, entity, page, component — writing new code           |
 | Research    | Codebase investigation, architecture question, coverage analysis   |
 | Update Docs | Sync `docs/` with current code state, fill TODOs, add new sections |
 
@@ -235,9 +237,12 @@ Agent definitions in `.claude/agents/`. Agents are launched via `Agent` tool wit
 
 | Agent       | File                            | Model  | Role                                           |
 |-------------|---------------------------------|--------|------------------------------------------------|
-| go-builder  | `.claude/agents/go-builder.md`  | sonnet | Go services, handlers, repos — strict layering |
-| ts-builder  | `.claude/agents/ts-builder.md`  | sonnet | Next.js pages, components, hooks               |
-| sql-builder | `.claude/agents/sql-builder.md` | sonnet | Migrations, sqlc queries                       |
+| go-builder      | `.claude/agents/go-builder.md`      | sonnet | Go services, handlers, repos — strict layering |
+| ts-builder      | `.claude/agents/ts-builder.md`      | sonnet | Next.js pages, components, hooks               |
+| sql-builder     | `.claude/agents/sql-builder.md`     | sonnet | Migrations, sqlc queries                       |
+| go-test-writer  | `.claude/agents/go-test-writer.md`  | sonnet | Find uncovered Go modules, write unit tests    |
+| e2e-test-writer | `.claude/agents/e2e-test-writer.md` | sonnet | Playwright smoke tests from scenario specs     |
+| refactor-go     | `.claude/agents/refactor-go.md`     | sonnet | Architecture violations, SOLID, layering       |
 
 **Experts (investigate, do NOT write code):**
 
@@ -250,7 +255,6 @@ Agent definitions in `.claude/agents/`. Agents are launched via `Agent` tool wit
 | security-reviewer | `.claude/agents/security-reviewer.md` | sonnet | OWASP + multi-tenancy isolation audit           |
 | git-investigator  | `.claude/agents/git-investigator.md`  | sonnet | Git history, blame, regression search           |
 | docs-analyzer     | `.claude/agents/docs-analyzer.md`     | sonnet | Code vs docs comparison, gap detection          |
-| refactor-go       | `.claude/agents/refactor-go.md`       | sonnet | Architecture violations, SOLID, layering        |
 
 **Utility:**
 
@@ -278,6 +282,17 @@ reports/<slug>/
   02-diagnose-sec.md      ← security-reviewer
   02-diagnose-git.md      ← git-investigator
   03-fix.md               ← go-builder
+  04-test.md              ← go-test-writer
+  05-validate.md          ← test-runner
+  06-report.md            ← report-writer
+
+  # Feature example:
+  01-spec.md              ← main / system-analytics
+  02-implement-go.md      ← go-builder
+  02-implement-sql.md     ← sql-builder
+  02-implement-ts.md      ← ts-builder
+  03-test-go.md           ← go-test-writer
+  03-test-e2e.md          ← e2e-test-writer
   04-validate.md          ← test-runner
   05-report.md            ← report-writer
 
@@ -290,16 +305,18 @@ reports/<slug>/
   # Update Docs example:
   01-analyze-docs.md      ← docs-analyzer
   01-analyze-go.md        ← go-diagnostics
+  01-analyze-ts.md        ← ts-diagnostics
   02-plan.md              ← main
-  03-validate.md          ← docs-analyzer
-  04-report.md            ← report-writer
+  03-update.md            ← main (docs changes made)
+  04-validate.md          ← docs-analyzer
+  05-report.md            ← report-writer
 ```
 
 ### `_status.md` Format
 
 ```markdown
 # Task: <title>
-Profile: Bug Fix | Research | Update Docs
+Profile: Bug Fix | Feature | Research | Update Docs
 Stage: <current stage>
 Next: <agent or action>
 Created: <YYYY-MM-DD>
@@ -323,11 +340,13 @@ input: <what the agent needs to know — file paths, root cause, etc.>
 3. **Agents read previous files** for context instead of receiving a rephrased summary from main
 4. **Main passes workspace path** to each agent in the prompt: "Workspace: `./reports/<slug>/`. Read previous stage files for context."
 5. **Parallel agents** write to separate files (e.g., `02-diagnose-go.md`, `02-diagnose-sec.md`) — no race conditions
-6. **Cross-session recovery**: new session scans `reports/*/_status.md` for tasks where Stage is not `Done` → offers to continue
+6. **Loop iterations**: when revisiting a stage, agent **overwrites** its file (e.g., `03-fix.md` is replaced, not duplicated as `03-fix-v2.md`)
+7. **Empty agent result**: if an agent returns with no findings, main notes "no issues found" and proceeds — do not re-launch or block
+8. **Cross-session recovery**: new session scans `reports/*/_status.md` for tasks where Stage is not `Done` → offers to continue
 
 ### Slug Convention
 
-`<short-description>-<profile>` — e.g., `org-getbyid-bug`, `auth-flow-research`, `backend-docs`
+`<short-description>-<profile>` — e.g., `org-getbyid-bug`, `campaigns-crud-feature`, `auth-flow-research`, `backend-docs`
 
 ---
 
@@ -336,7 +355,7 @@ input: <what the agent needs to know — file paths, root cause, etc.>
 ### Workflow (STRICT)
 
 ```
-Reproduce → Diagnose → Fix → Validate → Report → Done
+Reproduce → Diagnose → Fix → Test → Validate → Report → Done
 ```
 
 #### Allowed Transitions
@@ -347,10 +366,12 @@ Reproduce  → Report           (bug not reproducible — report with mark)
 Diagnose   → Fix
 Diagnose   → Reproduce        (need to reproduce differently)
 Diagnose   → Report           (diagnosis only, fix not required/possible)
-Fix        → Validate
+Fix        → Test
 Fix        → Diagnose         (fix revealed different root cause)
+Test       → Validate
 Validate   → Report           (all checks pass)
-Validate   → Fix              (fix doesn't work)
+Validate   → Fix              (fix doesn't work — loops Fix → Test → Validate)
+Validate   → Test             (tests themselves are wrong)
 Validate   → Diagnose         (root cause was different)
 Report     → Done
 ```
@@ -364,6 +385,7 @@ Agent launch at each stage is **MANDATORY, not optional**. Even for trivial bugs
 Violations:
 - Main reads code to find root cause instead of launching `go-diagnostics` → **FORBIDDEN**
 - Main writes a fix instead of launching `go-builder` → **FORBIDDEN**
+- Main writes tests instead of launching `go-test-writer` → **FORBIDDEN**
 - Main runs `go build`/`go test` instead of launching `test-runner` → **FORBIDDEN**
 - Skipping `git-investigator` because "the bug is obvious" → **FORBIDDEN**
 
@@ -371,13 +393,14 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 
 #### Agents by Stage
 
-| Stage     | Agents (parallel)                                           | Role                       |
-|-----------|-------------------------------------------------------------|----------------------------|
-| Reproduce | main                                                        | Run tests, curl, read logs |
-| Diagnose  | `go-diagnostics` + `git-investigator` + `security-reviewer` | Parallel investigation     |
-| Fix       | `go-builder` or `ts-builder` or `sql-builder` (by stack)    | Write fix                  |
-| Validate  | `test-runner`                                               | Run all checks             |
-| Report    | `report-writer`                                             | Save to workspace          |
+| Stage     | Agents (parallel, select by stack)                                            | Role                          |
+|-----------|-------------------------------------------------------------------------------|-------------------------------|
+| Reproduce | main                                                                          | Run tests, curl, read logs    |
+| Diagnose  | (`go-diagnostics` or `ts-diagnostics`) + `git-investigator` + `security-reviewer` | Parallel investigation    |
+| Fix       | `go-builder` or `ts-builder` or `sql-builder`                                 | Write fix                     |
+| Test      | `go-test-writer` or `e2e-test-writer`                                         | Write regression test for bug |
+| Validate  | `test-runner`                                                                 | Run all checks                |
+| Report    | `report-writer`                                                               | Save to workspace             |
 
 #### Main's Job at Each Stage
 
@@ -406,6 +429,11 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 - `security-reviewer`: auth/multi-tenancy implications
 - `go-builder`/`ts-builder`/`sql-builder`: minimal change — fix the bug, do not refactor surrounding code. **Fix the code, not the test** — never weaken tests to make them pass
 
+**Test:** Main does NOT write tests. Main:
+1. Launches `go-test-writer` or `e2e-test-writer` with workspace path (agent reads fix files for context)
+2. Agent writes regression test covering the bug scenario + `04-test.md` to workspace
+3. Regression test MUST assert the fixed behavior — if the fix is reverted, the test MUST fail
+
 **Validate:** Main does NOT run checks. Main launches `test-runner` with workspace path. Agent determines checks by stack:
 
 | Stack                          | Checks                                               |
@@ -415,10 +443,95 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 | SQL (`infra/migrations/`)      | `sqlc generate` — verify queries compile             |
 | Auth/RBAC changes              | `/security-review`                                   |
 
-Agent writes `04-validate.md` to workspace. If any check fails → back to Fix. **Loop until green** — no limit on Fix → Validate iterations.
+Agent writes `05-validate.md` to workspace. If checks fail, main reads error details and decides:
+- Build/vet fails → back to **Fix** (source code is broken)
+- Test assertion fails → back to **Fix** (fix didn't solve the bug, or broke something else)
+- Test compilation error → back to **Test** (test code itself is broken)
+
+**Loop until green.** If 3 iterations without progress → escalate to user with summary of what's failing.
 
 **Report:**
-`report-writer` compiles `05-report.md` in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
+`report-writer` compiles `06-report.md` in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
+
+---
+
+## Profile: Feature
+
+### Workflow (STRICT)
+
+```
+Spec → Implement → Test → Validate → Report → Done
+```
+
+#### Allowed Transitions
+
+```
+Spec       → Implement
+Implement  → Test
+Implement  → Spec             (spec was incomplete, need clarification)
+Test       → Validate
+Test       → Implement        (tests reveal missing implementation)
+Validate   → Report           (all checks pass)
+Validate   → Implement        (build/lint fails)
+Validate   → Test             (tests fail)
+Report     → Done
+```
+
+All other transitions FORBIDDEN. Before changing stage: `[Stage: X → Y]`.
+
+#### Agent Launch Policy (MANDATORY)
+
+Agent launch at each stage is **MANDATORY, not optional**. Main orchestrates; agents execute.
+
+Violations:
+- Main writes Go/TS/SQL code instead of launching builder agents → **FORBIDDEN**
+- Main writes tests instead of launching test-writer agents → **FORBIDDEN**
+- Main runs `go build`/`go test` instead of launching `test-runner` → **FORBIDDEN**
+- Skipping Test stage without justification → **FORBIDDEN**
+- Exception: SQL-only changes (migrations, indexes) with no new Go/TS code — Test stage may be skipped with `[Skip Test: SQL-only, no testable code]` log
+
+#### Agents by Stage
+
+| Stage     | Agents (parallel by stack)                                                     | Role                              |
+|-----------|--------------------------------------------------------------------------------|-----------------------------------|
+| Spec      | main or `system-analytics`                                                     | Write technical spec              |
+| Implement | `go-builder` + `sql-builder` + `ts-builder` (parallel, by stack)               | Write code by layer               |
+| Test      | `go-test-writer` + `e2e-test-writer` (parallel, by stack)                      | Write tests for new code          |
+| Validate  | `test-runner`                                                                  | Run all checks                    |
+| Report    | `report-writer`                                                                | Save to workspace                 |
+
+#### Main's Job at Each Stage
+
+**Spec:** Main writes technical spec or launches `system-analytics` for complex features.
+1. Understand user request — what entity/endpoint/page to build
+2. Determine affected stacks (Go, SQL, TypeScript)
+3. Follow New Entity Checklist order if adding a new entity
+4. Write `01-spec.md` to workspace with: what to build, which layers, acceptance criteria
+
+**Implement:** Main does NOT write code. Main:
+1. Determines which stacks are affected from spec
+2. Launches builder agents by stack, each with workspace path
+3. If SQL + Go/TS: launch `sql-builder` first, **wait for it to finish**, then launch `go-builder` and/or `ts-builder` in parallel
+4. If single stack (e.g., TS-only): launch that builder directly
+5. Agents read spec from workspace for context
+6. Agents write `02-implement-*.md` to workspace
+
+**Test:** Main does NOT write tests. Main:
+1. Launches `go-test-writer` and/or `e2e-test-writer` with workspace path
+2. Agents read implement files to understand what was built
+3. Agents write tests + `03-test-*.md` to workspace
+4. `go-test-writer`: table-driven unit tests for services, handlers, middleware
+5. `e2e-test-writer`: smoke scenarios for new UI features
+
+**Validate:** Main launches `test-runner`. Agent writes `04-validate.md`. If checks fail, main reads error details and decides:
+- Build/vet/lint fails → back to **Implement** (source code is broken)
+- Test assertion fails → back to **Implement** (implementation doesn't match expected behavior)
+- Test compilation error → back to **Test** (test code itself is broken)
+
+**Loop until green.** If 3 iterations without progress → escalate to user.
+
+**Report:**
+`report-writer` compiles `05-report.md` from all stage files. Updates `_status.md`: `Stage: Done`.
 
 ---
 
