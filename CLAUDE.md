@@ -219,7 +219,8 @@ Each request is processed within ONE profile. Profile is determined combinationa
 2. If auto-detected with high confidence (clear keywords match) — **proceed immediately**, no confirmation needed. Log: `[Profile: <name>]`
 3. If ambiguous (multiple profiles match or no clear keywords) — confirm via `AskUserQuestion`
 4. User can explicitly specify a profile — always proceed immediately
-5. **First action after profile selection**: create workspace `reports/<slug>/` + `_status.md` (profiles reference this step but do NOT duplicate it)
+5. **Pre-flight: check existing workspaces** — before creating a new workspace, scan `reports/*/_status.md` for tasks where Stage ≠ `Done`. If found with matching context (same feature, same bug, same area) — **Read the `_status.md`**, show current Stage to user, and offer to continue from that stage. If found but unrelated — proceed with new workspace. NEVER restart a flow that already has progress without asking the user
+6. **Create workspace** (only if step 5 found no match): `mkdir -p reports/<slug>/` + write `_status.md` (profiles reference this step but do NOT duplicate it)
 
 ### Available Profiles
 
@@ -354,7 +355,7 @@ input: <what the agent needs to know — file paths, root cause, etc.>
 5. **Parallel agents** write to separate files (e.g., `02-diagnose-go.md`, `02-diagnose-sec.md`) — no race conditions
 6. **Loop iterations**: when revisiting a stage, agent **overwrites** its file (e.g., `03-fix.md` is replaced, not duplicated as `03-fix-v2.md`)
 7. **Empty agent result**: if an agent returns with no findings, main notes "no issues found" and proceeds — do not re-launch or block
-8. **Cross-session recovery**: new session scans `reports/*/_status.md` for tasks where Stage is not `Done` → offers to continue
+8. **Cross-session recovery**: enforced by Profile Selection step 5 — scan happens BEFORE workspace creation. Additionally: when writing to an existing workspace file, always `Read` it first (the Write tool requires this for existing files)
 9. **Agents first**: launch agents as early as possible. Workspace files and `_status.md` can be written in parallel with agent launches or after them — never delay agent work for bookkeeping
 10. **No TaskCreate for simple profiles**: for profiles with ≤5 stages, skip TaskCreate — `_status.md` and stage transitions provide sufficient tracking
 11. **Background agent lifecycle**: when agents are launched with `run_in_background: true`, main MUST wait for the task-notification before reading their workspace files. Do NOT poll, check output files, or attempt to extract results before notification arrives. While waiting — write `_status.md` or do other bookkeeping, but do NOT launch additional agents or investigation for the same stage
