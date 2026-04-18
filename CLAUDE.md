@@ -480,7 +480,6 @@ Agents at Explore stage independently:
 - Trace data flow: HTTP request → handler → service → repository → SQL
 - Check `docs/` for existing documentation on the topic
 - Write findings to their workspace file (e.g., `01-explore-go.md`)
-- **Tool scoping**: Explore agents use ONLY `Read, Grep, Glob, ast-index`. No `Edit`, `Write`, `Bash` — read-only investigation
 
 **CRITICAL: Research profile MUST NOT modify any code files.** Read-only investigation.
 

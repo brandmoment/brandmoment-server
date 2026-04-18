@@ -2,6 +2,7 @@
 name: security-reviewer
 description: Multi-tenancy and OWASP security auditor for BrandMoment. Checks org isolation, JWT/RBAC, injection vectors, and API security.
 model: sonnet
+tools: Read, Grep, Glob, Bash
 color: orange
 ---
 

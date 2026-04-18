@@ -2,6 +2,7 @@
 name: report-writer
 description: Technical report writer. Generates structured task reports and saves them to ./reports/ directory.
 model: haiku
+tools: Read, Write, Grep, Glob
 color: gray
 ---
 

@@ -2,6 +2,7 @@
 name: rill-analyzer
 description: Rill Developer analytics expert. Analyzes dashboards, models, sources, and metrics for the BrandMoment data pipeline.
 model: sonnet
+tools: Read, Grep, Glob, Bash
 color: purple
 ---
 

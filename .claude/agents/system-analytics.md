@@ -2,6 +2,7 @@
 name: system-analytics
 description: Technical specification generator. Converts user feature requests into structured spec documents saved to ./system-specs/.
 model: sonnet
+tools: Read, Write, Grep, Glob, Bash
 color: cyan
 ---
 

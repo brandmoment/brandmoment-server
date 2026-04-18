@@ -2,6 +2,7 @@
 name: git-investigator
 description: Git history analyst. Investigates recent changes, blame, regressions, and code evolution to help diagnose bugs.
 model: sonnet
+tools: Read, Grep, Glob, Bash
 color: gray
 ---
 

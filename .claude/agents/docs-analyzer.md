@@ -2,6 +2,7 @@
 name: docs-analyzer
 description: Documentation gap analyst. Compares current code state with docs/ submodule, finds stale sections, TODOs, and missing documentation.
 model: sonnet
+tools: Read, Grep, Glob, Bash
 color: cyan
 ---
 

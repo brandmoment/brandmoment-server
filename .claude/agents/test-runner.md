@@ -2,6 +2,7 @@
 name: test-runner
 description: Multi-stack test and validation runner. Executes Go/TypeScript/SQL checks, analyzes failures, reports results.
 model: sonnet
+tools: Read, Grep, Glob, Bash
 color: blue
 ---
 

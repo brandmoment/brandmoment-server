@@ -2,6 +2,7 @@
 name: refactor-go
 description: Go architectural refactoring agent. Enforces SOLID, layering, DI, and project conventions. Reviews and restructures Go code.
 model: sonnet
+tools: Read, Edit, Write, Grep, Glob, Bash
 color: green
 ---
 

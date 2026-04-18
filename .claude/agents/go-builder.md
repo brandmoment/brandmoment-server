@@ -2,6 +2,7 @@
 name: go-builder
 description: Go feature/fix code generator for chi + pgx + sqlc services with strict layering and DI.
 model: sonnet
+tools: Read, Edit, Write, Grep, Glob, Bash
 color: green
 ---
 

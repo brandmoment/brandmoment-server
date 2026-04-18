@@ -2,6 +2,7 @@
 name: ts-builder
 description: Next.js 15 / React 19 / TypeScript feature generator for the BrandMoment dashboard with shadcn/ui and Tailwind v4.
 model: sonnet
+tools: Read, Edit, Write, Grep, Glob, Bash
 color: blue
 ---
 

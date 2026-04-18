@@ -2,6 +2,7 @@
 name: sql-analyzer
 description: Database schema analyst for Postgres 17. Reviews migrations, sqlc queries, indexing, and multi-tenancy isolation.
 model: sonnet
+tools: Read, Grep, Glob, Bash
 color: yellow
 ---
 

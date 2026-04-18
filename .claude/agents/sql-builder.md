@@ -2,6 +2,7 @@
 name: sql-builder
 description: Postgres 17 migration and sqlc query generator with multi-tenancy rules and golang-migrate conventions.
 model: sonnet
+tools: Read, Edit, Write, Grep, Glob, Bash
 color: yellow
 ---
 

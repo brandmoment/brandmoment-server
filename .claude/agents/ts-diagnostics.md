@@ -2,6 +2,7 @@
 name: ts-diagnostics
 description: Bug detector for Next.js 15 / React 19 / TypeScript dashboard. Traces page→component→hook→API, finds root cause without modifying code.
 model: sonnet
+tools: Read, Grep, Glob, Bash
 color: red
 ---
 
