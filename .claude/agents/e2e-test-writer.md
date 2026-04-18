@@ -1,6 +1,6 @@
 ---
 name: e2e-test-writer
-description: Playwright E2E test writer. Generates smoke scenarios from specs or reads existing, writes browser tests, executes via MCP, captures screenshots.
+description: Playwright E2E test writer. Generates smoke scenarios from specs or reads existing, writes browser tests, executes via CLI, captures screenshots.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 color: purple
