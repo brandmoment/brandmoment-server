@@ -19,6 +19,8 @@ type Handlers struct {
 	PublisherApp  *handler.PublisherAppHandler
 	APIKey        *handler.APIKeyHandler
 	PublisherRule *handler.PublisherRuleHandler
+	Campaign      *handler.CampaignHandler
+	Creative      *handler.CreativeHandler
 }
 
 func NewRouter(h *Handlers, auth *middleware.Auth) http.Handler {
@@ -74,6 +76,21 @@ func NewRouter(h *Handlers, auth *middleware.Auth) http.Handler {
 						r.With(auth.RequireRole("editor", "admin", "owner")).Put("/", h.PublisherRule.Update)
 						r.With(auth.RequireRole("admin", "owner")).Delete("/", h.PublisherRule.Delete)
 					})
+				})
+			})
+		})
+		r.Route("/campaigns", func(r chi.Router) {
+			r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.Campaign.List)
+			r.With(auth.RequireRole("editor", "admin", "owner")).Post("/", h.Campaign.Create)
+
+			r.Route("/{id}", func(r chi.Router) {
+				r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.Campaign.GetByID)
+				r.With(auth.RequireRole("editor", "admin", "owner")).Put("/", h.Campaign.Update)
+				r.With(auth.RequireRole("editor", "admin", "owner")).Patch("/status", h.Campaign.UpdateStatus)
+
+				r.Route("/creatives", func(r chi.Router) {
+					r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.Creative.List)
+					r.With(auth.RequireRole("editor", "admin", "owner")).Post("/", h.Creative.Create)
 				})
 			})
 		})

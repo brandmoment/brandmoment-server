@@ -87,6 +87,16 @@ func main() {
 	publisherRuleService := service.NewPublisherRuleService(publisherRuleRepo, tp)
 	publisherRuleHandler := handler.NewPublisherRuleHandler(publisherRuleService)
 
+	// DI — campaigns
+	campaignRepo := repository.NewCampaignRepository(pool)
+	campaignService := service.NewCampaignService(campaignRepo, tp)
+	campaignHandler := handler.NewCampaignHandler(campaignService)
+
+	// DI — creatives
+	creativeRepo := repository.NewCreativeRepository(pool)
+	creativeService := service.NewCreativeService(campaignRepo, creativeRepo, tp)
+	creativeHandler := handler.NewCreativeHandler(creativeService)
+
 	healthHandler := handler.NewHealthHandler()
 
 	mux := router.NewRouter(&router.Handlers{
@@ -97,6 +107,8 @@ func main() {
 		PublisherApp:  publisherAppHandler,
 		APIKey:        apiKeyHandler,
 		PublisherRule: publisherRuleHandler,
+		Campaign:      campaignHandler,
+		Creative:      creativeHandler,
 	}, auth)
 
 	srv := &http.Server{

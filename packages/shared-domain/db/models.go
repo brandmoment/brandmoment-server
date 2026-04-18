@@ -20,6 +20,34 @@ type ApiKey struct {
 	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
 }
 
+type Campaign struct {
+	ID          pgtype.UUID        `json:"id"`
+	OrgID       pgtype.UUID        `json:"org_id"`
+	Name        string             `json:"name"`
+	Status      string             `json:"status"`
+	Targeting   []byte             `json:"targeting"`
+	BudgetCents pgtype.Int8        `json:"budget_cents"`
+	Currency    string             `json:"currency"`
+	StartDate   pgtype.Date        `json:"start_date"`
+	EndDate     pgtype.Date        `json:"end_date"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Creative struct {
+	ID            pgtype.UUID        `json:"id"`
+	OrgID         pgtype.UUID        `json:"org_id"`
+	CampaignID    pgtype.UUID        `json:"campaign_id"`
+	Name          string             `json:"name"`
+	Type          string             `json:"type"`
+	FileUrl       string             `json:"file_url"`
+	FileSizeBytes pgtype.Int8        `json:"file_size_bytes"`
+	PreviewUrl    pgtype.Text        `json:"preview_url"`
+	IsActive      bool               `json:"is_active"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
 type OrgInvite struct {
 	ID         pgtype.UUID        `json:"id"`
 	OrgID      pgtype.UUID        `json:"org_id"`
