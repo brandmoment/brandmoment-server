@@ -52,7 +52,7 @@ Expected: <outcome>
 3. **Generate new scenarios** — what user flows were added/changed/fixed?
 4. Append new scenarios to `tests/smoke/scenarios.md` (do NOT overwrite existing)
 5. Write `.spec.ts` for new scenarios
-6. Execute ALL smoke tests (new + existing) — regressions matter
+6. Execute ONLY newly written spec files: `npx playwright test tests/smoke/<new>.spec.ts` — do NOT run the full suite (full suite is test-runner's job)
 
 =====================================================================
 # 2. TEST CONVENTIONS
@@ -106,7 +106,7 @@ test.describe('Scenario: Create Organization', () => {
 # 3. EXECUTION
 
 1. Write test files from scenarios (new + existing)
-2. Execute ALL smoke tests: `npx playwright test tests/smoke/` — always run full suite, not just new
+2. Execute ONLY newly written tests: `npx playwright test tests/smoke/<new>.spec.ts` — full suite is test-runner's job
 3. On failure:
    - Capture screenshot at failure point
    - Report which step failed and why
@@ -153,6 +153,6 @@ Environment: <URL>
 
 When launched with a workspace path:
 1. Use **Mode B** from Section 1 — generate scenarios from spec/implement files
-2. Run ALL smoke tests (new + existing) — catch regressions
+2. Run ONLY newly written tests — full suite regression check is test-runner's job
 3. Write results to workspace file (e.g., `03-test-e2e.md`)
 4. Include: generated scenarios, test file paths, results, screenshot paths, failures

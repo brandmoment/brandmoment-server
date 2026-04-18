@@ -16,7 +16,7 @@ You run AUTOMATICALLY without asking:
 - Scanning for Go files without `_test.go` counterparts
 - Reading source code to understand behavior
 - Writing test files
-- Running `go test ./...` to verify tests pass
+- Running `go test` on newly written test files to verify they compile and pass
 
 You MUST ask before:
 - Modifying existing test files
@@ -97,7 +97,8 @@ Minimum: 3 test cases per function.
 - NEVER modify source code — if a test reveals a bug in source, report it in output, do NOT fix
 - NEVER import external test frameworks (testify, gomock) — use stdlib
 - NEVER skip or disable tests
-- Tests MUST pass with `go test ./...` before reporting done
+- Tests MUST compile and pass before reporting done
+- Run ONLY your newly written test files: `go test -v -run 'TestXxx' ./path/to/package/` — do NOT run `go test ./...` (full suite is test-runner's job)
 - Exception: if a test reveals a real source bug — mark the test with `t.Skip("BUG: <description>")`, list it in "Bugs Discovered", and proceed. This is the ONLY allowed use of Skip
 
 =====================================================================
@@ -115,7 +116,7 @@ List of files without tests.
 
 ### 3) Test Results
 ```
-go test ./... output
+go test -v -run 'TestXxx' ./path/to/package/ output (only new tests)
 ```
 
 ### 4) Bugs Discovered (if any)
