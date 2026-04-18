@@ -215,6 +215,7 @@ Each request is processed within ONE profile. Profile is determined combinationa
 2. If auto-detected with high confidence (clear keywords match) — **proceed immediately**, no confirmation needed. Log: `[Profile: <name>]`
 3. If ambiguous (multiple profiles match or no clear keywords) — confirm via `AskUserQuestion`
 4. User can explicitly specify a profile — always proceed immediately
+5. **First action after profile selection**: create workspace `reports/<slug>/` + `_status.md`
 
 ### Available Profiles
 
@@ -359,30 +360,35 @@ If an agent returns and confirms the bug is trivial, main may note that in the r
 | Diagnose  | `go-diagnostics` + `git-investigator` + `security-reviewer` | Parallel investigation     |
 | Fix       | `go-builder` or `ts-builder` or `sql-builder` (by stack)    | Write fix                  |
 | Validate  | `test-runner`                                               | Run all checks             |
-| Report    | `report-writer`                                             | Save to ./reports/         |
+| Report    | `report-writer`                                             | Save to workspace          |
 
-#### Stage Details
+#### Main's Job at Each Stage
 
-**Reproduce:**
-1. Get bug description (from user, ticket, log)
-2. Determine affected service via `AskUserQuestion` if not obvious
-3. Attempt reproduction (run tests, curl endpoints, read logs)
-4. Document reproduction steps to `./reports/<slug>-reproduce.md`
-5. If NOT reproducible after 3 attempts — ask user for clarification or move to Report with "Not Reproduced" mark
+**Reproduce:** Main CAN read code and run tests at this stage (it's the entry point).
+1. Create workspace: `mkdir -p reports/<slug>/` + write `_status.md`
+2. Get bug description (from user, ticket, log)
+3. Determine affected service via `AskUserQuestion` if not obvious
+4. Attempt reproduction (run tests, curl endpoints, read logs)
+5. Write `01-reproduce.md` to workspace
+6. If NOT reproducible after 3 attempts — ask user or move to Report with "Not Reproduced" mark
 
-**Diagnose:**
-Launch agents **in parallel**:
-- `go-diagnostics` — trace handler→service→repo→SQL, find root cause
-- `git-investigator` — recent changes in affected area, blame
-- `security-reviewer` — if bug may involve auth/multi-tenancy
+**Diagnose:** Main does NOT investigate. Main:
+1. Launches agents **in parallel**, each with workspace path
+2. Waits for results (agents write `02-diagnose-*.md` to workspace)
+3. Reads agent files, forms root cause hypothesis
+4. If multiple hypotheses — present to user via `AskUserQuestion`
 
-Collect results → form root cause hypothesis.
-If multiple hypotheses — present to user via `AskUserQuestion`.
+**Fix:** Main does NOT write code. Main:
+1. Launches appropriate builder agent with workspace path (agent reads diagnose files for context)
+2. Agent writes fix + `03-fix.md` to workspace
+3. If fix touches auth/multi-tenancy — flag for security review
 
-**Fix:**
-1. Launch appropriate builder agent (`go-builder` / `ts-builder` / `sql-builder`)
-2. Minimal change — fix the bug, do not refactor surrounding code
-3. If the fix touches auth/multi-tenancy — flag for security review
+#### What Agents Do (context for agent prompts)
+
+- `go-diagnostics`: trace handler→service→repo→SQL, find root cause
+- `git-investigator`: recent changes in affected area, blame
+- `security-reviewer`: auth/multi-tenancy implications
+- `go-builder`/`ts-builder`/`sql-builder`: minimal change — fix the bug, do not refactor surrounding code
 
 **Validate:**
 
@@ -394,7 +400,7 @@ If multiple hypotheses — present to user via `AskUserQuestion`.
 | Auth/RBAC changes              | `/security-review`                                   |
 | All                            | `/simplify` — check for regressions and code quality |
 
-Validate CANNOT be skipped. If any check fails → back to Fix.
+**Validate:** Main does NOT run checks. Main launches `test-runner` with workspace path. Agent runs checks and writes `04-validate.md`. If any check fails → back to Fix.
 
 **Report:**
 `report-writer` compiles `05-report.md` in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
@@ -413,7 +419,7 @@ Explore → Analyze → Report → Done
 
 ```
 Explore   → Analyze
-Explore   → Report            (question is trivial, answer found immediately)
+Explore   → Report            (ONLY after agents ran and confirmed trivial)
 Analyze   → Explore           (need to investigate deeper)
 Analyze   → Report
 Report    → Done
@@ -432,27 +438,34 @@ Violations:
 
 Select agents by topic relevance (not all 5 every time), but at least 2 agents MUST run in parallel at Explore stage.
 
-#### Stage Details
-
-**Explore:**
-1. Identify scope of the question
-2. Use `/ast-index` for symbol search, project structure, module dependencies
-3. Read relevant files (handlers, services, repositories, migrations, configs)
-4. Trace data flow: HTTP request → handler → service → repository → SQL
-5. Check `docs/` for existing documentation on the topic
-
-**Analyze:**
-1. Synthesize findings into a structured answer
-2. Identify gaps, inconsistencies, or undocumented behavior
-3. If the question has multiple dimensions — break into sub-sections
-
 #### Agents by Stage
 
 | Stage   | Agents (parallel, by topic)                                                              | Role                                     |
 |---------|------------------------------------------------------------------------------------------|------------------------------------------|
 | Explore | `go-diagnostics` + `ts-diagnostics` + `sql-analyzer` + `rill-analyzer` + `docs-analyzer` | Parallel investigation (select by topic) |
 | Analyze | main                                                                                     | Synthesize agent findings                |
-| Report  | `report-writer`                                                                          | Save to ./reports/                       |
+| Report  | `report-writer`                                                                          | Save to workspace                        |
+
+#### Main's Job at Each Stage
+
+**Explore:** Main does NOT read code or trace flows. Main:
+1. Creates workspace directory `reports/<slug>/` + `_status.md`
+2. Selects relevant agents by topic (at least 2)
+3. Launches agents in parallel, each with: workspace path + question + scope
+4. Waits for results
+
+**Analyze:** Main reads agent output files from workspace, synthesizes into structured answer.
+
+**Report:** Main launches `report-writer` with workspace path.
+
+#### What Agents Do (context for agent prompts)
+
+Agents at Explore stage independently:
+- Use `/ast-index` for symbol search, project structure, module dependencies
+- Read relevant files (handlers, services, repositories, migrations, configs)
+- Trace data flow: HTTP request → handler → service → repository → SQL
+- Check `docs/` for existing documentation on the topic
+- Write findings to their workspace file (e.g., `01-explore-go.md`)
 
 **CRITICAL: Research profile MUST NOT modify any code files.** Read-only investigation.
 
@@ -494,45 +507,50 @@ Violations:
 
 All agents listed in the "Agents by Stage" table for a given stage MUST be launched. No shortcuts.
 
-#### Stage Details
-
-**Analyze Code:**
-1. Read current code state (services, handlers, models, migrations)
-2. Read existing `docs/` content — identify stale or TODO sections
-3. Compare code vs docs — find gaps
-4. Use `/ast-index` for project structure overview
-
-**Plan Changes:**
-1. List docs sections to create or update
-2. Log plan: `[Plan: N sections to update: ...]` — proceed immediately, no confirmation needed
-3. Prioritize: fill TODOs > update stale content > add new sections
-
-**Update Docs:**
-1. Follow existing docs style (Russian content, English headers, table navigation)
-2. Docs structure mirrors project structure:
-   - `docs/backend/` ↔ `services/api-dashboard/`, `services/api-sdk/`
-   - `docs/dashboard/` ↔ `apps/dashboard/`
-   - `docs/sdk/` ↔ SDK public API and protocol
-3. Update `docs/glossary.md` if new domain terms introduced
-4. Keep navigation links (`← К главной странице`) consistent
-
 #### Agents by Stage
 
 | Stage        | Agents                                                           | Role                   |
 |--------------|------------------------------------------------------------------|------------------------|
 | Analyze Code | `docs-analyzer` + `go-diagnostics` + `ts-diagnostics` (parallel) | Compare code vs docs   |
-| Plan Changes | main                                                             | List changes, ask user |
+| Plan Changes | main                                                             | List changes           |
 | Update Docs  | main                                                             | Write docs             |
 | Validate     | `docs-analyzer`                                                  | Check links, structure |
-| Report       | `report-writer`                                                  | Save to ./reports/     |
+| Report       | `report-writer`                                                  | Save to workspace      |
 
 **CRITICAL: Update Docs profile MUST NOT modify source code.** Only `docs/` files.
 
-**Validate:**
+#### Main's Job at Each Stage
+
+**Analyze Code:** Main does NOT read code or compare with docs. Main:
+1. Creates workspace directory `reports/<slug>/` + `_status.md`
+2. Launches agents in parallel, each with workspace path
+3. Waits for results (agents write `01-analyze-*.md` to workspace)
+4. Reads agent files
+
+**Plan Changes:** Main reads agent analysis files from workspace, then:
+1. Lists docs sections to create or update
+2. Log plan: `[Plan: N sections to update: ...]` — proceed immediately
+3. Prioritize: fill TODOs > update stale content > add new sections
+4. Write `02-plan.md` to workspace
+
+**Update Docs:** Main writes docs following:
+- Existing docs style (Russian content, English headers, table navigation)
+- `docs/backend/` ↔ `services/api-dashboard/`, `services/api-sdk/`
+- `docs/dashboard/` ↔ `apps/dashboard/`
+- `docs/sdk/` ↔ SDK public API and protocol
+- Update `docs/glossary.md` if new domain terms introduced
+
+**Validate:** Main does NOT check links manually. Main launches `docs-analyzer` with workspace path. Agent checks:
 1. All relative links in changed docs point to existing files
 2. New pages are referenced from parent README.md
 3. `docs/README.md` navigation table is up to date
 4. No orphan pages (every .md is reachable from README)
+
+#### What Agents Do (context for agent prompts)
+
+- `docs-analyzer`: compare docs/ with current code, find gaps, stale sections, TODOs
+- `go-diagnostics`: read Go services, extract public API surface for documentation
+- `ts-diagnostics`: read frontend code, extract component/hook structure for documentation
 
 **Report:**
 `report-writer` compiles final report in the workspace from all previous stage files. Updates `_status.md`: `Stage: Done`.
