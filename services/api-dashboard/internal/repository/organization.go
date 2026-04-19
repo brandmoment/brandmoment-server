@@ -70,14 +70,6 @@ func (r *organizationRepo) ListByIDs(ctx context.Context, ids []uuid.UUID) ([]mo
 	return orgs, nil
 }
 
-func uuidToPgtype(id uuid.UUID) pgtype.UUID {
-	return pgtype.UUID{Bytes: id, Valid: true}
-}
-
-func pgtypeToUUID(id pgtype.UUID) uuid.UUID {
-	return uuid.UUID(id.Bytes)
-}
-
 func toOrganization(row db.Organization) *model.Organization {
 	return &model.Organization{
 		ID:        pgtypeToUUID(row.ID),
