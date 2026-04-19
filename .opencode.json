@@ -1,5 +1,5 @@
 {
-"provider": {
+  "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "Ollama",
@@ -14,5 +14,10 @@
     }
   },
   "model": "ollama/qwen3:30b-a3b",
-  "small_model": "ollama/qwen3:30b-a3b"
+  "small_model": "ollama/qwen3:30b-a3b",
+  "permission": {
+    "edit": "allow",
+    "bash": "allow",
+    "webfetch": "allow"
+  }
 }
