@@ -49,3 +49,32 @@ migration → sqlc queries → repository → service → handler → tests → 
 - @sql-builder — migrations + sqlc queries
 - @code-reviewer — read-only code review
 - @test-writer — table-driven Go tests
+
+## Execution Loop
+
+Autonomous sequential execution from GitHub issues.
+
+### Protocol
+
+1. Run: `gh issue list --repo brandmoment/brandmoment-server --state open --limit 1 --json number,title,labels,body`
+2. Map label to task type: `bug` → fix bug, `test` → write tests, `refactor` → refactor code, `enhancement` → add feature, `documentation` → add docs
+3. Read the issue body for details
+4. Execute the task: read existing code, make changes, run validation
+5. Validate: `go build ./...` → `go vet ./...` → `go test ./...`
+6. If validation fails — fix and retry (max 3 attempts)
+7. Commit with message: `<type>: <description>\n\nFixes #N`
+8. Run: `gh issue close N --repo brandmoment/brandmoment-server`
+9. Go to step 1 — take next issue
+
+### Stop Conditions
+- All issues closed → done
+- 3 consecutive failures on same issue → skip to next
+- 3 skipped issues in a row → stop
+- Build/test broken and can't self-heal in 3 attempts → stop
+
+### Important Rules
+- NEVER skip validation (go build, go vet, go test)
+- NEVER modify test expectations to make tests pass — fix the code
+- Read existing code before making changes
+- Follow project conventions from this file
+- Each issue = one commit with `Fixes #N`
