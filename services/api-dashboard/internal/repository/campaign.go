@@ -157,10 +157,11 @@ func (r *campaignRepo) UpdateStatus(ctx context.Context, orgID, id uuid.UUID, st
 
 // toCampaign converts a sqlc-generated Campaign row to the domain model.
 func toCampaign(row db.Campaign) (*model.Campaign, error) {
+	id := pgtypeToUUID(row.ID)
 	var targeting model.CampaignTargeting
 	if len(row.Targeting) > 0 {
 		if err := json.Unmarshal(row.Targeting, &targeting); err != nil {
-			return nil, fmt.Errorf("unmarshal targeting: %w", err)
+			return nil, fmt.Errorf("unmarshal targeting for campaign %s: %w", id, err)
 		}
 	}
 
