@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -94,23 +93,4 @@ func (h *PublisherAppHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.RespondJSON(w, http.StatusOK, app)
-}
-
-// parsePagination extracts limit and offset from query params.
-// Defaults: limit=20, offset=0. Max limit clamped in service layer.
-func parsePagination(r *http.Request) (limit, offset int32) {
-	limit = 20
-	offset = 0
-
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 32); err == nil && n > 0 {
-			limit = int32(n)
-		}
-	}
-	if v := r.URL.Query().Get("offset"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 32); err == nil && n >= 0 {
-			offset = int32(n)
-		}
-	}
-	return limit, offset
 }

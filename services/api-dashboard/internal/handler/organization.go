@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"slices"
 
@@ -11,7 +10,6 @@ import (
 
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/httputil"
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/middleware"
-	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/service"
 )
 
@@ -72,17 +70,4 @@ func (h *OrganizationHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.RespondJSON(w, http.StatusOK, orgs)
-}
-
-func handleServiceError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, model.ErrNotFound):
-		httputil.RespondError(w, http.StatusNotFound, "NOT_FOUND", err.Error())
-	case errors.Is(err, model.ErrInvalidInput):
-		httputil.RespondError(w, http.StatusBadRequest, "INVALID_INPUT", err.Error())
-	case errors.Is(err, model.ErrUnauthorized):
-		httputil.RespondError(w, http.StatusUnauthorized, "UNAUTHORIZED", err.Error())
-	default:
-		httputil.RespondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
-	}
 }
