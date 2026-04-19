@@ -16,6 +16,18 @@ LIMIT 50;
 SELECT COUNT(*) FROM creatives
 WHERE org_id = @org_id AND campaign_id = @campaign_id;
 
+-- name: UpdateCreative :one
+UPDATE creatives
+SET name            = @name,
+    type            = @type,
+    file_url        = @file_url,
+    file_size_bytes = @file_size_bytes,
+    preview_url     = @preview_url,
+    is_active       = @is_active,
+    updated_at      = now()
+WHERE org_id = @org_id AND campaign_id = @campaign_id AND id = @id
+RETURNING *;
+
 -- name: InsertCreative :one
 INSERT INTO creatives (id, org_id, campaign_id, name, type, file_url,
                        file_size_bytes, preview_url, is_active, created_at, updated_at)

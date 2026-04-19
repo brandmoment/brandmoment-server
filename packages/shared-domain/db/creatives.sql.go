@@ -158,3 +158,57 @@ func (q *Queries) ListCreativesByCampaign(ctx context.Context, arg ListCreatives
 	}
 	return items, nil
 }
+
+const updateCreative = `-- name: UpdateCreative :one
+UPDATE creatives
+SET name            = $1,
+    type            = $2,
+    file_url        = $3,
+    file_size_bytes = $4,
+    preview_url     = $5,
+    is_active       = $6,
+    updated_at      = now()
+WHERE org_id = $7 AND campaign_id = $8 AND id = $9
+RETURNING id, org_id, campaign_id, name, type, file_url, file_size_bytes, preview_url, is_active, created_at, updated_at
+`
+
+type UpdateCreativeParams struct {
+	Name          string      `json:"name"`
+	Type          string      `json:"type"`
+	FileUrl       string      `json:"file_url"`
+	FileSizeBytes pgtype.Int8 `json:"file_size_bytes"`
+	PreviewUrl    pgtype.Text `json:"preview_url"`
+	IsActive      bool        `json:"is_active"`
+	OrgID         pgtype.UUID `json:"org_id"`
+	CampaignID    pgtype.UUID `json:"campaign_id"`
+	ID            pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateCreative(ctx context.Context, arg UpdateCreativeParams) (Creative, error) {
+	row := q.db.QueryRow(ctx, updateCreative,
+		arg.Name,
+		arg.Type,
+		arg.FileUrl,
+		arg.FileSizeBytes,
+		arg.PreviewUrl,
+		arg.IsActive,
+		arg.OrgID,
+		arg.CampaignID,
+		arg.ID,
+	)
+	var i Creative
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.CampaignID,
+		&i.Name,
+		&i.Type,
+		&i.FileUrl,
+		&i.FileSizeBytes,
+		&i.PreviewUrl,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

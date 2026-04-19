@@ -71,6 +71,38 @@ func (h *CreativeHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, http.StatusOK, creative)
 }
 
+func (h *CreativeHandler) Update(w http.ResponseWriter, r *http.Request) {
+	orgID := middleware.OrgIDFromContext(r.Context())
+
+	campaignIDStr := chi.URLParam(r, "id")
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, "INVALID_ID", "campaign id must be a valid UUID")
+		return
+	}
+
+	creativeIDStr := chi.URLParam(r, "creativeId")
+	creativeID, err := uuid.Parse(creativeIDStr)
+	if err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, "INVALID_ID", "creative id must be a valid UUID")
+		return
+	}
+
+	var req service.UpdateCreativeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")
+		return
+	}
+
+	creative, err := h.service.Update(r.Context(), orgID, campaignID, creativeID, req)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	httputil.RespondJSON(w, http.StatusOK, creative)
+}
+
 func (h *CreativeHandler) List(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.OrgIDFromContext(r.Context())
 

@@ -22,6 +22,7 @@ type mockCreativeRepoForHandler struct {
 	insertFn         func(ctx context.Context, c *model.Creative) (*model.Creative, error)
 	getByIDFn        func(ctx context.Context, orgID, campaignID, id uuid.UUID) (*model.Creative, error)
 	listByCampaignFn func(ctx context.Context, orgID, campaignID uuid.UUID) ([]model.Creative, int64, error)
+	updateFn         func(ctx context.Context, orgID, campaignID, id uuid.UUID, params repository.UpdateCreativeParams) (*model.Creative, error)
 }
 
 func (m *mockCreativeRepoForHandler) Insert(ctx context.Context, c *model.Creative) (*model.Creative, error) {
@@ -34,6 +35,13 @@ func (m *mockCreativeRepoForHandler) GetByID(ctx context.Context, orgID, campaig
 
 func (m *mockCreativeRepoForHandler) ListByCampaign(ctx context.Context, orgID, campaignID uuid.UUID) ([]model.Creative, int64, error) {
 	return m.listByCampaignFn(ctx, orgID, campaignID)
+}
+
+func (m *mockCreativeRepoForHandler) Update(ctx context.Context, orgID, campaignID, id uuid.UUID, params repository.UpdateCreativeParams) (*model.Creative, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, orgID, campaignID, id, params)
+	}
+	return nil, nil
 }
 
 // compile-time check: mockCreativeRepoForHandler satisfies repository.CreativeRepository.
@@ -331,6 +339,136 @@ func TestCreativeHandler_ListByCampaign(t *testing.T) {
 					t.Fatalf("data field missing: %+v", resp)
 				}
 				tt.checkData(t, data)
+			}
+		})
+	}
+}
+
+// TestCreativeHandler_Update covers PUT /v1/campaigns/{id}/creatives/{creativeId}.
+func TestCreativeHandler_Update(t *testing.T) {
+	orgID := uuid.New()
+	campaignID := uuid.New()
+	creativeID := uuid.New()
+
+	existingCreative := stubCreative(orgID, campaignID)
+	existingCreative.ID = creativeID
+
+	validBody := map[string]any{
+		"name":     "Updated Banner",
+		"type":     "html5",
+		"file_url": "s3://bucket/banner.zip",
+	}
+
+	tests := []struct {
+		name          string
+		urlCampaignID string
+		urlCreativeID string
+		body          any
+		campaignRepo  *mockCampaignRepoForHandler
+		creativeRepo  *mockCreativeRepoForHandler
+		wantStatus    int
+		wantErrCode   string
+	}{
+		{
+			name:          "success returns 200",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			body:          validBody,
+			campaignRepo:  &mockCampaignRepoForHandler{},
+			creativeRepo: &mockCreativeRepoForHandler{
+				updateFn: func(_ context.Context, _, _, _ uuid.UUID, _ repository.UpdateCreativeParams) (*model.Creative, error) {
+					return existingCreative, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:          "creative not found returns 404",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			body:          validBody,
+			campaignRepo:  &mockCampaignRepoForHandler{},
+			creativeRepo: &mockCreativeRepoForHandler{
+				updateFn: func(_ context.Context, _, _, _ uuid.UUID, _ repository.UpdateCreativeParams) (*model.Creative, error) {
+					return nil, model.ErrNotFound
+				},
+			},
+			wantStatus:  http.StatusNotFound,
+			wantErrCode: "NOT_FOUND",
+		},
+		{
+			name:          "invalid campaign UUID returns 400",
+			urlCampaignID: "not-a-uuid",
+			urlCreativeID: creativeID.String(),
+			body:          validBody,
+			campaignRepo:  &mockCampaignRepoForHandler{},
+			creativeRepo:  &mockCreativeRepoForHandler{},
+			wantStatus:    http.StatusBadRequest,
+			wantErrCode:   "INVALID_ID",
+		},
+		{
+			name:          "invalid creative UUID returns 400",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: "not-a-uuid",
+			body:          validBody,
+			campaignRepo:  &mockCampaignRepoForHandler{},
+			creativeRepo:  &mockCreativeRepoForHandler{},
+			wantStatus:    http.StatusBadRequest,
+			wantErrCode:   "INVALID_ID",
+		},
+		{
+			name:          "invalid JSON body returns 400",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			body:          "not-json{",
+			campaignRepo:  &mockCampaignRepoForHandler{},
+			creativeRepo:  &mockCreativeRepoForHandler{},
+			wantStatus:    http.StatusBadRequest,
+			wantErrCode:   "INVALID_BODY",
+		},
+		{
+			name:          "empty name returns 400",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			body:          map[string]any{"name": "", "type": "html5", "file_url": "s3://bucket/banner.zip"},
+			campaignRepo:  &mockCampaignRepoForHandler{},
+			creativeRepo:  &mockCreativeRepoForHandler{},
+			wantStatus:    http.StatusBadRequest,
+			wantErrCode:   "INVALID_INPUT",
+		},
+		{
+			name:          "repo error returns 500",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			body:          validBody,
+			campaignRepo:  &mockCampaignRepoForHandler{},
+			creativeRepo: &mockCreativeRepoForHandler{
+				updateFn: func(_ context.Context, _, _, _ uuid.UUID, _ repository.UpdateCreativeParams) (*model.Creative, error) {
+					return nil, context.DeadlineExceeded
+				},
+			},
+			wantStatus:  http.StatusInternalServerError,
+			wantErrCode: "INTERNAL_ERROR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bodyBytes := marshalBody(t, tt.body)
+			h := newCreativeHandler(tt.campaignRepo, tt.creativeRepo)
+
+			url := "/v1/campaigns/" + tt.urlCampaignID + "/creatives/" + tt.urlCreativeID
+			req := httptest.NewRequest(http.MethodPut, url, bytes.NewReader(bodyBytes))
+			req.Header.Set("Content-Type", "application/json")
+			req = injectAuthContext(req, orgID, "editor", []uuid.UUID{orgID})
+			req = withChiCampaignAndCreativeID(req, tt.urlCampaignID, tt.urlCreativeID)
+
+			w := httptest.NewRecorder()
+			h.Update(w, req)
+
+			assertStatus(t, w, tt.wantStatus)
+			if tt.wantErrCode != "" {
+				assertErrorCode(t, w, tt.wantErrCode)
 			}
 		})
 	}

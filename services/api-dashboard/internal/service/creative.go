@@ -13,6 +13,7 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/repository"
 )
 
+
 type CreativeService struct {
 	campaignRepo repository.CampaignRepository
 	creativeRepo repository.CreativeRepository
@@ -33,6 +34,15 @@ type CreateCreativeRequest struct {
 	FileURL       string `json:"file_url"`
 	FileSizeBytes *int64 `json:"file_size_bytes"`
 	PreviewURL    *string `json:"preview_url"`
+}
+
+type UpdateCreativeRequest struct {
+	Name          string  `json:"name"`
+	Type          string  `json:"type"`
+	FileURL       string  `json:"file_url"`
+	FileSizeBytes *int64  `json:"file_size_bytes"`
+	PreviewURL    *string `json:"preview_url"`
+	IsActive      bool    `json:"is_active"`
 }
 
 type CreativeListResult struct {
@@ -114,6 +124,44 @@ func (s *CreativeService) GetByID(ctx context.Context, orgID, campaignID, id uui
 		return nil, err
 	}
 	return c, nil
+}
+
+func (s *CreativeService) Update(ctx context.Context, orgID, campaignID, id uuid.UUID, req UpdateCreativeRequest) (*model.Creative, error) {
+	ctx, span := s.tracer.Start(ctx, "CreativeService.Update")
+	defer span.End()
+
+	if req.Name == "" {
+		return nil, fmt.Errorf("%w: name is required", model.ErrInvalidInput)
+	}
+	if len(req.Name) > 200 {
+		return nil, fmt.Errorf("%w: name must be 200 characters or less", model.ErrInvalidInput)
+	}
+	if !validCreativeTypes[req.Type] {
+		return nil, fmt.Errorf("%w: type must be one of html5, image, video", model.ErrInvalidInput)
+	}
+	if req.FileSizeBytes != nil && *req.FileSizeBytes <= 0 {
+		return nil, fmt.Errorf("%w: file_size_bytes must be a positive integer", model.ErrInvalidInput)
+	}
+
+	slog.InfoContext(ctx, "updating creative",
+		slog.String("org_id", orgID.String()),
+		slog.String("campaign_id", campaignID.String()),
+		slog.String("id", id.String()),
+	)
+
+	updated, err := s.creativeRepo.Update(ctx, orgID, campaignID, id, repository.UpdateCreativeParams{
+		Name:          req.Name,
+		Type:          req.Type,
+		FileURL:       req.FileURL,
+		FileSizeBytes: req.FileSizeBytes,
+		PreviewURL:    req.PreviewURL,
+		IsActive:      req.IsActive,
+	})
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	return updated, nil
 }
 
 func (s *CreativeService) ListByCampaign(ctx context.Context, orgID, campaignID uuid.UUID) (*CreativeListResult, error) {

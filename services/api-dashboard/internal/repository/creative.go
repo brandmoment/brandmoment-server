@@ -18,6 +18,17 @@ type CreativeRepository interface {
 	Insert(ctx context.Context, c *model.Creative) (*model.Creative, error)
 	GetByID(ctx context.Context, orgID, campaignID, id uuid.UUID) (*model.Creative, error)
 	ListByCampaign(ctx context.Context, orgID, campaignID uuid.UUID) ([]model.Creative, int64, error)
+	Update(ctx context.Context, orgID, campaignID, id uuid.UUID, params UpdateCreativeParams) (*model.Creative, error)
+}
+
+// UpdateCreativeParams holds the fields that may be changed on an existing creative.
+type UpdateCreativeParams struct {
+	Name          string
+	Type          string
+	FileURL       string
+	FileSizeBytes *int64
+	PreviewURL    *string
+	IsActive      bool
 }
 
 type creativeRepo struct {
@@ -85,6 +96,27 @@ func (r *creativeRepo) ListByCampaign(ctx context.Context, orgID, campaignID uui
 		creatives[i] = *toCreative(row)
 	}
 	return creatives, total, nil
+}
+
+func (r *creativeRepo) Update(ctx context.Context, orgID, campaignID, id uuid.UUID, params UpdateCreativeParams) (*model.Creative, error) {
+	row, err := r.q.UpdateCreative(ctx, db.UpdateCreativeParams{
+		Name:          params.Name,
+		Type:          params.Type,
+		FileUrl:       params.FileURL,
+		FileSizeBytes: int64ToPgtypeInt8(params.FileSizeBytes),
+		PreviewUrl:    stringToPgtypeText(params.PreviewURL),
+		IsActive:      params.IsActive,
+		OrgID:         uuidToPgtype(orgID),
+		CampaignID:    uuidToPgtype(campaignID),
+		ID:            uuidToPgtype(id),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, model.ErrNotFound
+		}
+		return nil, fmt.Errorf("update creative: %w", err)
+	}
+	return toCreative(row), nil
 }
 
 // toCreative converts a sqlc-generated Creative row to the domain model.
