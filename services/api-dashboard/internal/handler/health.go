@@ -8,7 +8,8 @@ import (
 
 type HealthHandler struct{}
 
-func NewHealthHandler() *HealthHandler {
+// NewHealthHandler returns a new HealthHandler instance.
+  func NewHealthHandler() *HealthHandler {
 	return &HealthHandler{}
 }
 

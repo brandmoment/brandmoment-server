@@ -16,7 +16,8 @@ type CreativeHandler struct {
 	service *service.CreativeService
 }
 
-func NewCreativeHandler(svc *service.CreativeService) *CreativeHandler {
+// NewCreativeHandler returns a new CreativeHandler instance.
+  func NewCreativeHandler(svc *service.CreativeService) *CreativeHandler {
 	return &CreativeHandler{service: svc}
 }
 

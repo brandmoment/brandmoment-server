@@ -27,7 +27,8 @@ type UserHandler struct {
 	service *service.UserService
 }
 
-func NewUserHandler(svc *service.UserService) *UserHandler {
+// NewUserHandler returns a new UserHandler instance.
+  func NewUserHandler(svc *service.UserService) *UserHandler {
 	return &UserHandler{service: svc}
 }
 

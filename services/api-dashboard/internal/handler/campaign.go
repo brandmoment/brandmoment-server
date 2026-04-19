@@ -16,7 +16,8 @@ type CampaignHandler struct {
 	service *service.CampaignService
 }
 
-func NewCampaignHandler(svc *service.CampaignService) *CampaignHandler {
+// NewCampaignHandler returns a new CampaignHandler instance.
+  func NewCampaignHandler(svc *service.CampaignService) *CampaignHandler {
 	return &CampaignHandler{service: svc}
 }
 

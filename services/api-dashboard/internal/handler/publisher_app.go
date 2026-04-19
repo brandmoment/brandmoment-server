@@ -17,7 +17,8 @@ type PublisherAppHandler struct {
 	service *service.PublisherAppService
 }
 
-func NewPublisherAppHandler(svc *service.PublisherAppService) *PublisherAppHandler {
+// NewPublisherAppHandler returns a new PublisherAppHandler instance.
+  func NewPublisherAppHandler(svc *service.PublisherAppService) *PublisherAppHandler {
 	return &PublisherAppHandler{service: svc}
 }
 

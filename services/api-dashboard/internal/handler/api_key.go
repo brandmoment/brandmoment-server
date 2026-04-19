@@ -16,7 +16,8 @@ type APIKeyHandler struct {
 	service *service.APIKeyService
 }
 
-func NewAPIKeyHandler(svc *service.APIKeyService) *APIKeyHandler {
+// NewAPIKeyHandler returns a new APIKeyHandler instance.
+  func NewAPIKeyHandler(svc *service.APIKeyService) *APIKeyHandler {
 	return &APIKeyHandler{service: svc}
 }
 

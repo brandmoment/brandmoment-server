@@ -15,7 +15,8 @@ type OrgInviteHandler struct {
 	service *service.OrgInviteService
 }
 
-func NewOrgInviteHandler(svc *service.OrgInviteService) *OrgInviteHandler {
+// NewOrgInviteHandler returns a new OrgInviteHandler instance.
+  func NewOrgInviteHandler(svc *service.OrgInviteService) *OrgInviteHandler {
 	return &OrgInviteHandler{service: svc}
 }
 

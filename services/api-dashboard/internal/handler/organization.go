@@ -19,7 +19,8 @@ type OrganizationHandler struct {
 	service *service.OrganizationService
 }
 
-func NewOrganizationHandler(svc *service.OrganizationService) *OrganizationHandler {
+// NewOrganizationHandler returns a new OrganizationHandler instance.
+  func NewOrganizationHandler(svc *service.OrganizationService) *OrganizationHandler {
 	return &OrganizationHandler{service: svc}
 }
 
