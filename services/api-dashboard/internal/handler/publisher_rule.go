@@ -16,6 +16,7 @@ type PublisherRuleHandler struct {
 	service *service.PublisherRuleService
 }
 
+// NewPublisherRuleHandler returns a PublisherRuleHandler wired to the given PublisherRuleService.
 func NewPublisherRuleHandler(svc *service.PublisherRuleService) *PublisherRuleHandler {
 	return &PublisherRuleHandler{service: svc}
 }

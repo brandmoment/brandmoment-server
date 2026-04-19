@@ -13,8 +13,11 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
+// OrgInviteRepository defines persistence operations for organization invitations.
 type OrgInviteRepository interface {
+	// Insert persists a new org invite and returns the stored record.
 	Insert(ctx context.Context, invite *model.OrgInvite) (*model.OrgInvite, error)
+	// GetByToken retrieves an invite by its unique token, returning ErrNotFound when absent.
 	GetByToken(ctx context.Context, token string) (*model.OrgInvite, error)
 }
 
@@ -22,6 +25,7 @@ type orgInviteRepo struct {
 	q *db.Queries
 }
 
+// NewOrgInviteRepository constructs an OrgInviteRepository backed by the given connection pool.
 func NewOrgInviteRepository(pool *pgxpool.Pool) OrgInviteRepository {
 	return &orgInviteRepo{q: db.New(pool)}
 }

@@ -14,10 +14,15 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
+// CreativeRepository defines persistence operations for ad creatives within a campaign.
 type CreativeRepository interface {
+	// Insert persists a new creative and returns the stored record.
 	Insert(ctx context.Context, c *model.Creative) (*model.Creative, error)
+	// GetByID retrieves a creative by org, campaign, and creative ID, returning ErrNotFound when absent.
 	GetByID(ctx context.Context, orgID, campaignID, id uuid.UUID) (*model.Creative, error)
+	// ListByCampaign returns all creatives for the given campaign together with the total count.
 	ListByCampaign(ctx context.Context, orgID, campaignID uuid.UUID) ([]model.Creative, int64, error)
+	// Update replaces the mutable fields of a creative and returns the updated record.
 	Update(ctx context.Context, orgID, campaignID, id uuid.UUID, params UpdateCreativeParams) (*model.Creative, error)
 }
 
@@ -35,6 +40,7 @@ type creativeRepo struct {
 	q *db.Queries
 }
 
+// NewCreativeRepository constructs a CreativeRepository backed by the given connection pool.
 func NewCreativeRepository(pool *pgxpool.Pool) CreativeRepository {
 	return &creativeRepo{q: db.New(pool)}
 }

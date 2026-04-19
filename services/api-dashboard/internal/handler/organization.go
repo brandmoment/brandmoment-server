@@ -17,6 +17,7 @@ type OrganizationHandler struct {
 	service *service.OrganizationService
 }
 
+// NewOrganizationHandler returns an OrganizationHandler wired to the given OrganizationService.
 func NewOrganizationHandler(svc *service.OrganizationService) *OrganizationHandler {
 	return &OrganizationHandler{service: svc}
 }

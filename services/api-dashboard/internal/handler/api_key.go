@@ -16,6 +16,7 @@ type APIKeyHandler struct {
 	service *service.APIKeyService
 }
 
+// NewAPIKeyHandler returns an APIKeyHandler wired to the given APIKeyService.
 func NewAPIKeyHandler(svc *service.APIKeyService) *APIKeyHandler {
 	return &APIKeyHandler{service: svc}
 }

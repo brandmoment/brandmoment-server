@@ -14,9 +14,13 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
+// OrganizationRepository defines persistence operations for organizations.
 type OrganizationRepository interface {
+	// Insert persists a new organization and returns the stored record.
 	Insert(ctx context.Context, org *model.Organization) (*model.Organization, error)
+	// GetByID retrieves an organization by its ID, returning ErrNotFound when absent.
 	GetByID(ctx context.Context, id uuid.UUID) (*model.Organization, error)
+	// ListByIDs returns all organizations whose IDs are in the provided slice.
 	ListByIDs(ctx context.Context, ids []uuid.UUID) ([]model.Organization, error)
 }
 
@@ -24,6 +28,7 @@ type organizationRepo struct {
 	q *db.Queries
 }
 
+// NewOrganizationRepository constructs an OrganizationRepository backed by the given connection pool.
 func NewOrganizationRepository(pool *pgxpool.Pool) OrganizationRepository {
 	return &organizationRepo{q: db.New(pool)}
 }

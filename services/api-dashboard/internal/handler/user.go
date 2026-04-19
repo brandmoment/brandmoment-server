@@ -27,6 +27,7 @@ type UserHandler struct {
 	service *service.UserService
 }
 
+// NewUserHandler returns a UserHandler wired to the given UserService.
 func NewUserHandler(svc *service.UserService) *UserHandler {
 	return &UserHandler{service: svc}
 }

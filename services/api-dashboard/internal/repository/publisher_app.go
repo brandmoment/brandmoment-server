@@ -14,11 +14,17 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
+// PublisherAppRepository defines persistence operations for publisher mobile applications.
 type PublisherAppRepository interface {
+	// Insert persists a new publisher app and returns the stored record.
 	Insert(ctx context.Context, app *model.PublisherApp) (*model.PublisherApp, error)
+	// GetByID retrieves a publisher app by org and app ID, returning ErrNotFound when absent.
 	GetByID(ctx context.Context, orgID, id uuid.UUID) (*model.PublisherApp, error)
+	// GetByBundleID retrieves a publisher app by org and bundle identifier, returning ErrNotFound when absent.
 	GetByBundleID(ctx context.Context, orgID uuid.UUID, bundleID string) (*model.PublisherApp, error)
+	// ListByOrg returns a paginated list of publisher apps for the org together with the total count.
 	ListByOrg(ctx context.Context, orgID uuid.UUID, limit, offset int32) ([]model.PublisherApp, int64, error)
+	// Update replaces the mutable fields of a publisher app and returns the updated record.
 	Update(ctx context.Context, app *model.PublisherApp) (*model.PublisherApp, error)
 }
 
@@ -26,6 +32,7 @@ type publisherAppRepo struct {
 	q *db.Queries
 }
 
+// NewPublisherAppRepository constructs a PublisherAppRepository backed by the given connection pool.
 func NewPublisherAppRepository(pool *pgxpool.Pool) PublisherAppRepository {
 	return &publisherAppRepo{q: db.New(pool)}
 }

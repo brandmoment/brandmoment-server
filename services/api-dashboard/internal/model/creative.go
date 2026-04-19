@@ -6,14 +6,19 @@ import (
 	"github.com/google/uuid"
 )
 
+// CreativeType enumerates the supported ad creative formats.
 type CreativeType string
 
 const (
+	// TypeHTML5 represents an interactive HTML5 ad unit.
 	TypeHTML5 CreativeType = "html5"
+	// TypeImage represents a static image ad.
 	TypeImage CreativeType = "image"
+	// TypeVideo represents a video ad.
 	TypeVideo CreativeType = "video"
 )
 
+// Creative represents an ad creative asset belonging to a campaign.
 type Creative struct {
 	ID            uuid.UUID    `json:"id"`
 	OrgID         uuid.UUID    `json:"org_id"`

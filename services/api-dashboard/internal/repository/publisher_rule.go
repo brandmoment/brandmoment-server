@@ -14,11 +14,17 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
+// PublisherRuleRepository defines persistence operations for publisher targeting rules scoped to an app.
 type PublisherRuleRepository interface {
+	// Insert persists a new publisher rule and returns the stored record.
 	Insert(ctx context.Context, rule *model.PublisherRule) (*model.PublisherRule, error)
+	// GetByID retrieves a publisher rule by org, app, and rule ID, returning ErrNotFound when absent.
 	GetByID(ctx context.Context, orgID, appID, id uuid.UUID) (*model.PublisherRule, error)
+	// ListByApp returns a paginated list of publisher rules for the given app together with the total count.
 	ListByApp(ctx context.Context, orgID, appID uuid.UUID, limit, offset int32) ([]model.PublisherRule, int64, error)
+	// Update replaces the mutable fields of a publisher rule and returns the updated record.
 	Update(ctx context.Context, rule *model.PublisherRule) (*model.PublisherRule, error)
+	// Delete permanently removes a publisher rule identified by org, app, and rule ID.
 	Delete(ctx context.Context, orgID, appID, id uuid.UUID) error
 }
 
@@ -26,6 +32,7 @@ type publisherRuleRepo struct {
 	q *db.Queries
 }
 
+// NewPublisherRuleRepository constructs a PublisherRuleRepository backed by the given connection pool.
 func NewPublisherRuleRepository(pool *pgxpool.Pool) PublisherRuleRepository {
 	return &publisherRuleRepo{q: db.New(pool)}
 }

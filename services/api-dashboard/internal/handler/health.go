@@ -8,6 +8,7 @@ import (
 
 type HealthHandler struct{}
 
+// NewHealthHandler returns a HealthHandler for the liveness check endpoint.
 func NewHealthHandler() *HealthHandler {
 	return &HealthHandler{}
 }

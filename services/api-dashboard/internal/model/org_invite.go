@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// OrgInvite represents a pending invitation for a user to join an organisation.
 type OrgInvite struct {
 	ID         uuid.UUID  `json:"id"`
 	OrgID      uuid.UUID  `json:"org_id"`

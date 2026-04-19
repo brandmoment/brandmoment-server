@@ -16,6 +16,7 @@ type CampaignHandler struct {
 	service *service.CampaignService
 }
 
+// NewCampaignHandler returns a CampaignHandler wired to the given CampaignService.
 func NewCampaignHandler(svc *service.CampaignService) *CampaignHandler {
 	return &CampaignHandler{service: svc}
 }

@@ -16,11 +16,17 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
+// CampaignRepository defines persistence operations for advertising campaigns.
 type CampaignRepository interface {
+	// Insert persists a new campaign and returns the stored record.
 	Insert(ctx context.Context, c *model.Campaign) (*model.Campaign, error)
+	// GetByID retrieves a campaign by org and campaign ID, returning ErrNotFound when absent.
 	GetByID(ctx context.Context, orgID, id uuid.UUID) (*model.Campaign, error)
+	// ListByOrg returns a paginated list of campaigns for the org with an optional status filter and the total count.
 	ListByOrg(ctx context.Context, orgID uuid.UUID, statusFilter *string, limit, offset int32) ([]model.Campaign, int64, error)
+	// Update replaces all mutable fields of a campaign and returns the updated record.
 	Update(ctx context.Context, c *model.Campaign) (*model.Campaign, error)
+	// UpdateStatus transitions a campaign to the given status and returns the updated record.
 	UpdateStatus(ctx context.Context, orgID, id uuid.UUID, status model.CampaignStatus, updatedAt time.Time) (*model.Campaign, error)
 }
 
@@ -28,6 +34,7 @@ type campaignRepo struct {
 	q *db.Queries
 }
 
+// NewCampaignRepository constructs a CampaignRepository backed by the given connection pool.
 func NewCampaignRepository(pool *pgxpool.Pool) CampaignRepository {
 	return &campaignRepo{q: db.New(pool)}
 }

@@ -16,6 +16,7 @@ type CreativeHandler struct {
 	service *service.CreativeService
 }
 
+// NewCreativeHandler returns a CreativeHandler wired to the given CreativeService.
 func NewCreativeHandler(svc *service.CreativeService) *CreativeHandler {
 	return &CreativeHandler{service: svc}
 }

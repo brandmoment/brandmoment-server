@@ -15,6 +15,7 @@ type OrgInviteHandler struct {
 	service *service.OrgInviteService
 }
 
+// NewOrgInviteHandler returns an OrgInviteHandler wired to the given OrgInviteService.
 func NewOrgInviteHandler(svc *service.OrgInviteService) *OrgInviteHandler {
 	return &OrgInviteHandler{service: svc}
 }

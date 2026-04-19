@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// APIKey represents an authentication key associated with a publisher app and organisation.
 type APIKey struct {
 	ID        uuid.UUID  `json:"id"`
 	OrgID     uuid.UUID  `json:"org_id"`
