@@ -59,7 +59,7 @@ func stubCreative(orgID, campaignID uuid.UUID) *model.Creative {
 		CampaignID: campaignID,
 		Name:       "Banner 320x50",
 		Type:       model.TypeHTML5,
-		FileURL:    "s3://bucket/banner.zip",
+		FileURL:    "https://cdn.example.com/banner.zip",
 		IsActive:   true,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
@@ -105,7 +105,7 @@ func TestCreativeHandler_Create(t *testing.T) {
 		{
 			name:         "valid html5 creative returns 201",
 			urlID:        campaignID.String(),
-			body:         map[string]any{"name": "Banner 320x50", "type": "html5", "file_url": "s3://bucket/banner.zip"},
+			body:         map[string]any{"name": "Banner 320x50", "type": "html5", "file_url": "https://cdn.example.com/banner.zip"},
 			campaignRepo: campaignFoundRepo,
 			creativeRepo: &mockCreativeRepoForHandler{
 				insertFn: func(_ context.Context, c *model.Creative) (*model.Creative, error) {
@@ -117,7 +117,7 @@ func TestCreativeHandler_Create(t *testing.T) {
 		{
 			name:         "campaign not found returns 404",
 			urlID:        campaignID.String(),
-			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "s3://bucket/banner.zip"},
+			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "https://cdn.example.com/banner.zip"},
 			campaignRepo: campaignNotFoundRepo,
 			creativeRepo: &mockCreativeRepoForHandler{},
 			wantStatus:   http.StatusNotFound,
@@ -126,7 +126,7 @@ func TestCreativeHandler_Create(t *testing.T) {
 		{
 			name:         "campaign belongs to different org returns 404",
 			urlID:        campaignID.String(),
-			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "s3://bucket/banner.zip"},
+			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "https://cdn.example.com/banner.zip"},
 			campaignRepo: campaignNotFoundRepo, // repo enforces org_id — cross-org returns ErrNotFound
 			creativeRepo: &mockCreativeRepoForHandler{},
 			wantStatus:   http.StatusNotFound,
@@ -135,7 +135,7 @@ func TestCreativeHandler_Create(t *testing.T) {
 		{
 			name:         "invalid campaign UUID in URL returns 400",
 			urlID:        "not-a-uuid",
-			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "s3://bucket/banner.zip"},
+			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "https://cdn.example.com/banner.zip"},
 			campaignRepo: &mockCampaignRepoForHandler{},
 			creativeRepo: &mockCreativeRepoForHandler{},
 			wantStatus:   http.StatusBadRequest,
@@ -153,7 +153,7 @@ func TestCreativeHandler_Create(t *testing.T) {
 		{
 			name:         "empty name returns 400",
 			urlID:        campaignID.String(),
-			body:         map[string]any{"name": "", "type": "html5", "file_url": "s3://bucket/banner.zip"},
+			body:         map[string]any{"name": "", "type": "html5", "file_url": "https://cdn.example.com/banner.zip"},
 			campaignRepo: &mockCampaignRepoForHandler{},
 			creativeRepo: &mockCreativeRepoForHandler{},
 			wantStatus:   http.StatusBadRequest,
@@ -162,7 +162,7 @@ func TestCreativeHandler_Create(t *testing.T) {
 		{
 			name:         "invalid type returns 400",
 			urlID:        campaignID.String(),
-			body:         map[string]any{"name": "Banner", "type": "gif", "file_url": "s3://bucket/banner.gif"},
+			body:         map[string]any{"name": "Banner", "type": "gif", "file_url": "https://cdn.example.com/banner.gif"},
 			campaignRepo: &mockCampaignRepoForHandler{},
 			creativeRepo: &mockCreativeRepoForHandler{},
 			wantStatus:   http.StatusBadRequest,
@@ -171,7 +171,7 @@ func TestCreativeHandler_Create(t *testing.T) {
 		{
 			name:         "negative file_size_bytes returns 400",
 			urlID:        campaignID.String(),
-			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "s3://bucket/banner.zip", "file_size_bytes": int64(-1)},
+			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "https://cdn.example.com/banner.zip", "file_size_bytes": int64(-1)},
 			campaignRepo: &mockCampaignRepoForHandler{},
 			creativeRepo: &mockCreativeRepoForHandler{},
 			wantStatus:   http.StatusBadRequest,
@@ -180,7 +180,7 @@ func TestCreativeHandler_Create(t *testing.T) {
 		{
 			name:         "repo insert error returns 500",
 			urlID:        campaignID.String(),
-			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "s3://bucket/banner.zip"},
+			body:         map[string]any{"name": "Banner", "type": "html5", "file_url": "https://cdn.example.com/banner.zip"},
 			campaignRepo: campaignFoundRepo,
 			creativeRepo: &mockCreativeRepoForHandler{
 				insertFn: func(_ context.Context, _ *model.Creative) (*model.Creative, error) {
@@ -356,7 +356,7 @@ func TestCreativeHandler_Update(t *testing.T) {
 	validBody := map[string]any{
 		"name":     "Updated Banner",
 		"type":     "html5",
-		"file_url": "s3://bucket/banner.zip",
+		"file_url": "https://cdn.example.com/banner.zip",
 	}
 
 	tests := []struct {
@@ -430,7 +430,7 @@ func TestCreativeHandler_Update(t *testing.T) {
 			name:          "empty name returns 400",
 			urlCampaignID: campaignID.String(),
 			urlCreativeID: creativeID.String(),
-			body:          map[string]any{"name": "", "type": "html5", "file_url": "s3://bucket/banner.zip"},
+			body:          map[string]any{"name": "", "type": "html5", "file_url": "https://cdn.example.com/banner.zip"},
 			campaignRepo:  &mockCampaignRepoForHandler{},
 			creativeRepo:  &mockCreativeRepoForHandler{},
 			wantStatus:    http.StatusBadRequest,

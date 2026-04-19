@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,6 +57,21 @@ var validCreativeTypes = map[string]bool{
 	string(model.TypeVideo): true,
 }
 
+// validateFileURL checks that rawURL is non-empty and an absolute http/https URL.
+func validateFileURL(rawURL string) error {
+	if rawURL == "" {
+		return fmt.Errorf("%w: file_url is required", model.ErrInvalidInput)
+	}
+	parsed, err := url.ParseRequestURI(rawURL)
+	if err != nil {
+		return fmt.Errorf("%w: file_url must be a valid URL", model.ErrInvalidInput)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("%w: file_url scheme must be http or https", model.ErrInvalidInput)
+	}
+	return nil
+}
+
 func (s *CreativeService) Create(ctx context.Context, orgID, campaignID uuid.UUID, req CreateCreativeRequest) (*model.Creative, error) {
 	ctx, span := s.tracer.Start(ctx, "CreativeService.Create")
 	defer span.End()
@@ -68,6 +84,9 @@ func (s *CreativeService) Create(ctx context.Context, orgID, campaignID uuid.UUI
 	}
 	if !validCreativeTypes[req.Type] {
 		return nil, fmt.Errorf("%w: type must be one of html5, image, video", model.ErrInvalidInput)
+	}
+	if err := validateFileURL(req.FileURL); err != nil {
+		return nil, err
 	}
 	if req.FileSizeBytes != nil && *req.FileSizeBytes <= 0 {
 		return nil, fmt.Errorf("%w: file_size_bytes must be a positive integer", model.ErrInvalidInput)
@@ -138,6 +157,9 @@ func (s *CreativeService) Update(ctx context.Context, orgID, campaignID, id uuid
 	}
 	if !validCreativeTypes[req.Type] {
 		return nil, fmt.Errorf("%w: type must be one of html5, image, video", model.ErrInvalidInput)
+	}
+	if err := validateFileURL(req.FileURL); err != nil {
+		return nil, err
 	}
 	if req.FileSizeBytes != nil && *req.FileSizeBytes <= 0 {
 		return nil, fmt.Errorf("%w: file_size_bytes must be a positive integer", model.ErrInvalidInput)
