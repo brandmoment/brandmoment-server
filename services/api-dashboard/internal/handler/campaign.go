@@ -24,6 +24,7 @@ func NewCampaignHandler(svc *service.CampaignService) *CampaignHandler {
 func (h *CampaignHandler) Create(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.OrgIDFromContext(r.Context())
 
+	defer r.Body.Close()
 	var req service.CreateCampaignRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")
@@ -86,6 +87,7 @@ func (h *CampaignHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
 	var req service.UpdateCampaignRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")
@@ -111,6 +113,7 @@ func (h *CampaignHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
 	var req service.UpdateCampaignStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")

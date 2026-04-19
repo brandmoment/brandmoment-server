@@ -23,6 +23,7 @@ func NewOrganizationHandler(svc *service.OrganizationService) *OrganizationHandl
 }
 
 func (h *OrganizationHandler) Create(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 	var req service.CreateOrganizationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")

@@ -29,6 +29,7 @@ func (h *PublisherRuleHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
 	var req service.CreatePublisherRuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")
@@ -102,6 +103,7 @@ func (h *PublisherRuleHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
 	var req service.UpdatePublisherRuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")

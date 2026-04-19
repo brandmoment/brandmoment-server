@@ -24,6 +24,7 @@ func NewPublisherAppHandler(svc *service.PublisherAppService) *PublisherAppHandl
 func (h *PublisherAppHandler) Create(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.OrgIDFromContext(r.Context())
 
+	defer r.Body.Close()
 	var req service.CreatePublisherAppRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")
@@ -81,6 +82,7 @@ func (h *PublisherAppHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
 	var req service.UpdatePublisherAppRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httputil.RespondError(w, http.StatusBadRequest, "INVALID_BODY", "failed to decode request")
