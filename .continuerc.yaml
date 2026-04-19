@@ -1,0 +1,14 @@
+systemMessage: |
+  BrandMoment — multi-tenant ad network. Monorepo: Go 1.23 + Next.js 15.
+
+  Stack: chi router, pgx, sqlc, shadcn/ui, Tailwind v4, Postgres 17, BetterAuth (JWT).
+
+  Go layers: handler (decode/respond) → service (logic + OTel + slog) → repository (wraps sqlc).
+  DI via constructors, no globals/init(). Errors: fmt.Errorf("verb noun: %w", err). No panics. No raw SQL.
+
+  Multi-tenancy: sub-resources ALWAYS WHERE org_id = $1. org_id from JWT context, never request body.
+
+  Naming: snake_case files, PascalCase types, New* constructors. DB: snake_case plural, UUID PKs. API: kebab-case /api/v1/, envelope {"data","error"}.
+
+  SQL: migrations up+down, IF NOT EXISTS, TIMESTAMPTZ. sqlc: Get*ByID, List*sByOrg, Insert*, Update*, Delete*.
+
