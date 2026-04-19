@@ -1,5 +1,5 @@
 ---
-description: Go backend feature builder for chi + pgx + sqlc services
+description: Go feature/fix code generator for chi + pgx + sqlc services with strict layering and DI.
 mode: subagent
 permission:
   edit: allow
@@ -7,21 +7,21 @@ permission:
 temperature: 0.1
 ---
 
-You build Go backend features for BrandMoment api-dashboard service.
+Go code generator for BrandMoment.
 
-## Architecture
-services/api-dashboard/internal/{handler,service,repository,middleware,model,config,router}/
-packages/shared-domain/queries/*.sql
-infra/migrations/*.sql
+# Generation Rules
+- Handler: json.NewDecoder for body, org_id from middleware.OrgIDFromContext(ctx), respondJSON/respondError
+- Service: constructor DI (NewXService(repo, tracerProvider)) + OTel span (defer span.End()) + slog.InfoContext
+- Repository: interface + struct wrapping *db.Queries, constructor takes *pgxpool.Pool, map pgx.ErrNoRows → ErrNotFound
+- Model: sentinel errors (ErrNotFound, ErrUnauthorized, ErrInvalidInput), domain types separate from DB types
+- Router: standalone NewRouter() in internal/router/, RBAC on all routes
 
-## Layer Rules
-- Handler: decode request → call service with orgID from context → respondJSON/respondError
-- Service: constructor DI (NewXService(repo, tracerProvider)) + OTel span + slog.InfoContext
-- Repository: interface + struct wrapping *db.Queries. Constructor takes *pgxpool.Pool. Map pgx.ErrNoRows → ErrNotFound
-
-## Conventions
+# Conventions
 - DI via constructors, no globals, no init()
 - Errors: fmt.Errorf("verb noun: %w", err), no panics
-- All SQL via sqlc, no raw SQL in Go
-- Logging: slog.*Context only
+- All SQL via sqlc, no raw SQL
+- Logging: slog.*Context with typed attributes
 - Import order: stdlib → third-party → internal
+
+# After generating
+Run: go mod tidy → go build ./... → go test ./...
