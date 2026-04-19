@@ -45,6 +45,32 @@ func (h *CreativeHandler) Create(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, http.StatusCreated, creative)
 }
 
+func (h *CreativeHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	orgID := middleware.OrgIDFromContext(r.Context())
+
+	campaignIDStr := chi.URLParam(r, "id")
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, "INVALID_ID", "campaign id must be a valid UUID")
+		return
+	}
+
+	creativeIDStr := chi.URLParam(r, "creativeId")
+	creativeID, err := uuid.Parse(creativeIDStr)
+	if err != nil {
+		httputil.RespondError(w, http.StatusBadRequest, "INVALID_ID", "creative id must be a valid UUID")
+		return
+	}
+
+	creative, err := h.service.GetByID(r.Context(), orgID, campaignID, creativeID)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+
+	httputil.RespondJSON(w, http.StatusOK, creative)
+}
+
 func (h *CreativeHandler) List(w http.ResponseWriter, r *http.Request) {
 	orgID := middleware.OrgIDFromContext(r.Context())
 

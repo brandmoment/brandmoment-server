@@ -91,6 +91,10 @@ func NewRouter(h *Handlers, auth *middleware.Auth) http.Handler {
 				r.Route("/creatives", func(r chi.Router) {
 					r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.Creative.List)
 					r.With(auth.RequireRole("editor", "admin", "owner")).Post("/", h.Creative.Create)
+
+					r.Route("/{creativeId}", func(r chi.Router) {
+						r.With(auth.RequireRole("viewer", "editor", "admin", "owner")).Get("/", h.Creative.GetByID)
+					})
 				})
 			})
 		})

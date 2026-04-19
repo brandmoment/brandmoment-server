@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace/noop"
 
@@ -55,6 +56,14 @@ func stubCreative(orgID, campaignID uuid.UUID) *model.Creative {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
+}
+
+// withChiCampaignAndCreativeID injects both {id} (campaign) and {creativeId} into the chi route context.
+func withChiCampaignAndCreativeID(r *http.Request, campaignID, creativeID string) *http.Request {
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", campaignID)
+	rctx.URLParams.Add("creativeId", creativeID)
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
 
 // TestCreativeHandler_Create covers POST /v1/campaigns/{id}/creatives.
@@ -322,6 +331,125 @@ func TestCreativeHandler_ListByCampaign(t *testing.T) {
 					t.Fatalf("data field missing: %+v", resp)
 				}
 				tt.checkData(t, data)
+			}
+		})
+	}
+}
+
+// TestCreativeHandler_GetByID covers GET /v1/campaigns/{id}/creatives/{creativeId}.
+func TestCreativeHandler_GetByID(t *testing.T) {
+	orgID := uuid.New()
+	campaignID := uuid.New()
+	creativeID := uuid.New()
+
+	existingCampaign := stubCampaign(orgID)
+	existingCampaign.ID = campaignID
+
+	existingCreative := stubCreative(orgID, campaignID)
+	existingCreative.ID = creativeID
+
+	campaignFoundRepo := &mockCampaignRepoForHandler{
+		getByIDFn: func(_ context.Context, _, _ uuid.UUID) (*model.Campaign, error) {
+			return existingCampaign, nil
+		},
+	}
+
+	tests := []struct {
+		name           string
+		urlCampaignID  string
+		urlCreativeID  string
+		campaignRepo   *mockCampaignRepoForHandler
+		creativeRepo   *mockCreativeRepoForHandler
+		wantStatus     int
+		wantErrCode    string
+	}{
+		{
+			name:          "found creative returns 200",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			campaignRepo:  campaignFoundRepo,
+			creativeRepo: &mockCreativeRepoForHandler{
+				getByIDFn: func(_ context.Context, _, _, _ uuid.UUID) (*model.Creative, error) {
+					return existingCreative, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:          "creative not found returns 404",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			campaignRepo:  campaignFoundRepo,
+			creativeRepo: &mockCreativeRepoForHandler{
+				getByIDFn: func(_ context.Context, _, _, _ uuid.UUID) (*model.Creative, error) {
+					return nil, model.ErrNotFound
+				},
+			},
+			wantStatus:  http.StatusNotFound,
+			wantErrCode: "NOT_FOUND",
+		},
+		{
+			name:          "creative belongs to different org returns 404",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			campaignRepo:  campaignFoundRepo,
+			// repo enforces org_id filter — cross-org lookup returns ErrNotFound
+			creativeRepo: &mockCreativeRepoForHandler{
+				getByIDFn: func(_ context.Context, _, _, _ uuid.UUID) (*model.Creative, error) {
+					return nil, model.ErrNotFound
+				},
+			},
+			wantStatus:  http.StatusNotFound,
+			wantErrCode: "NOT_FOUND",
+		},
+		{
+			name:          "invalid campaign UUID in URL returns 400",
+			urlCampaignID: "not-a-uuid",
+			urlCreativeID: creativeID.String(),
+			campaignRepo:  &mockCampaignRepoForHandler{},
+			creativeRepo:  &mockCreativeRepoForHandler{},
+			wantStatus:    http.StatusBadRequest,
+			wantErrCode:   "INVALID_ID",
+		},
+		{
+			name:          "invalid creative UUID in URL returns 400",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: "not-a-uuid",
+			campaignRepo:  campaignFoundRepo,
+			creativeRepo:  &mockCreativeRepoForHandler{},
+			wantStatus:    http.StatusBadRequest,
+			wantErrCode:   "INVALID_ID",
+		},
+		{
+			name:          "repo error returns 500",
+			urlCampaignID: campaignID.String(),
+			urlCreativeID: creativeID.String(),
+			campaignRepo:  campaignFoundRepo,
+			creativeRepo: &mockCreativeRepoForHandler{
+				getByIDFn: func(_ context.Context, _, _, _ uuid.UUID) (*model.Creative, error) {
+					return nil, context.DeadlineExceeded
+				},
+			},
+			wantStatus:  http.StatusInternalServerError,
+			wantErrCode: "INTERNAL_ERROR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newCreativeHandler(tt.campaignRepo, tt.creativeRepo)
+
+			url := "/v1/campaigns/" + tt.urlCampaignID + "/creatives/" + tt.urlCreativeID
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			req = injectAuthContext(req, orgID, "viewer", []uuid.UUID{orgID})
+			req = withChiCampaignAndCreativeID(req, tt.urlCampaignID, tt.urlCreativeID)
+
+			w := httptest.NewRecorder()
+			h.GetByID(w, req)
+
+			assertStatus(t, w, tt.wantStatus)
+			if tt.wantErrCode != "" {
+				assertErrorCode(t, w, tt.wantErrCode)
 			}
 		})
 	}
