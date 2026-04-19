@@ -262,6 +262,43 @@ Scan → Update Smoke → Run → Report → Done
 
 ---
 
+## Profile: Execution Loop
+
+Autonomous sequential execution from GitHub project board.
+
+### Protocol
+
+1. `gh issue list --repo brandmoment/brandmoment-server --state open --limit 1 --json number,title,labels,body`
+2. Map label → profile: `bug`→Bug Fix, `test`→Feature(Test), `refactor`→Feature, `enhancement`→Feature, `documentation`→Update Docs
+3. Create workspace `reports/<slug>/`, write `_status.md`
+4. Execute per mapped profile (all existing stage rules apply)
+5. Commit with `<type>: <description>\n\nFixes #N`
+6. `gh issue close N`
+7. goto 1
+
+### Stop conditions
+
+- All issues closed → done
+- 3 consecutive failures on same issue → comment on issue, skip to next
+- 3 skipped issues in a row → stop, escalate to user
+- Build/test broken and can't self-heal in 3 attempts → stop, escalate
+
+### Recovery after context compression
+
+1. `gh issue list --state open` — remaining backlog
+2. `gh issue list --state closed --limit 5` — what's done
+3. `git log --oneline -5` — recent commits
+4. Pick next open issue → continue
+
+### Metrics
+
+Each commit message includes issue number. Post-loop report:
+- `gh issue list --state closed` — count completed
+- `git log --format="%H %aI %s"` — timestamps per task
+- Consecutive without failure count
+
+---
+
 ## Detailed Rules
 
 Go patterns, anti-patterns, and code examples are in `.claude/rules/` — loaded automatically by file glob.
