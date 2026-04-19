@@ -14,7 +14,8 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
-type OrganizationRepository interface {
+// OrganizationRepository defines methods for accessing organization data.
+  type OrganizationRepository interface {
 	Insert(ctx context.Context, org *model.Organization) (*model.Organization, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*model.Organization, error)
 	ListByIDs(ctx context.Context, ids []uuid.UUID) ([]model.Organization, error)

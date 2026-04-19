@@ -15,7 +15,8 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
-type APIKeyRepository interface {
+// APIKeyRepository defines methods for accessing API key data.
+  type APIKeyRepository interface {
 	Insert(ctx context.Context, key *model.APIKey) (*model.APIKey, error)
 	GetByID(ctx context.Context, orgID, appID, id uuid.UUID) (*model.APIKey, error)
 	ListByApp(ctx context.Context, orgID, appID uuid.UUID, activeOnly bool) ([]model.APIKey, error)

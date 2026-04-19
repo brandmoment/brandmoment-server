@@ -15,7 +15,8 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
-type UserRepository interface {
+// UserRepository defines methods for accessing user data.
+  type UserRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 	Upsert(ctx context.Context, id uuid.UUID, email, name string, createdAt time.Time) (*model.User, error)
 }

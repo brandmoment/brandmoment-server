@@ -13,7 +13,8 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
-type OrgInviteRepository interface {
+// OrgInviteRepository defines methods for accessing organization invites.
+  type OrgInviteRepository interface {
 	Insert(ctx context.Context, invite *model.OrgInvite) (*model.OrgInvite, error)
 	GetByToken(ctx context.Context, token string) (*model.OrgInvite, error)
 }

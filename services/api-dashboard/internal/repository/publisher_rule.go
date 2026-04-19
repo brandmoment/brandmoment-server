@@ -14,7 +14,8 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
-type PublisherRuleRepository interface {
+// PublisherRuleRepository defines methods for accessing publisher rule data.
+  type PublisherRuleRepository interface {
 	Insert(ctx context.Context, rule *model.PublisherRule) (*model.PublisherRule, error)
 	GetByID(ctx context.Context, orgID, appID, id uuid.UUID) (*model.PublisherRule, error)
 	ListByApp(ctx context.Context, orgID, appID uuid.UUID, limit, offset int32) ([]model.PublisherRule, int64, error)

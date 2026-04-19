@@ -14,7 +14,8 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
-type CreativeRepository interface {
+// CreativeRepository defines methods for accessing creative data.
+  type CreativeRepository interface {
 	Insert(ctx context.Context, c *model.Creative) (*model.Creative, error)
 	GetByID(ctx context.Context, orgID, campaignID, id uuid.UUID) (*model.Creative, error)
 	ListByCampaign(ctx context.Context, orgID, campaignID uuid.UUID) ([]model.Creative, int64, error)

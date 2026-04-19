@@ -14,7 +14,8 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
-type PublisherAppRepository interface {
+// PublisherAppRepository defines methods for accessing publisher app data.
+  type PublisherAppRepository interface {
 	Insert(ctx context.Context, app *model.PublisherApp) (*model.PublisherApp, error)
 	GetByID(ctx context.Context, orgID, id uuid.UUID) (*model.PublisherApp, error)
 	GetByBundleID(ctx context.Context, orgID uuid.UUID, bundleID string) (*model.PublisherApp, error)

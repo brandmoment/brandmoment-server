@@ -16,7 +16,8 @@ import (
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/model"
 )
 
-type CampaignRepository interface {
+// CampaignRepository defines methods for accessing campaign data.
+  type CampaignRepository interface {
 	Insert(ctx context.Context, c *model.Campaign) (*model.Campaign, error)
 	GetByID(ctx context.Context, orgID, id uuid.UUID) (*model.Campaign, error)
 	ListByOrg(ctx context.Context, orgID uuid.UUID, statusFilter *string, limit, offset int32) ([]model.Campaign, int64, error)
