@@ -13,7 +13,8 @@ var (
 	ErrInvalidInput = errors.New("invalid input")
 )
 
-type Organization struct {
+// Organization represents an organization in the system.
+  type Organization struct {
 	ID        uuid.UUID `json:"id"`
 	Type      string    `json:"type"`
 	Name      string    `json:"name"`

@@ -15,7 +15,8 @@ const (
 	RuleTypePlatformFilter  = "platform_filter"
 )
 
-type PublisherRule struct {
+// PublisherRule represents a rule for publisher apps.
+  type PublisherRule struct {
 	ID        uuid.UUID       `json:"id"`
 	OrgID     uuid.UUID       `json:"org_id"`
 	AppID     uuid.UUID       `json:"app_id"`

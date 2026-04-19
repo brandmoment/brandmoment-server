@@ -6,7 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type PublisherApp struct {
+// PublisherApp represents a publisher application.
+  type PublisherApp struct {
 	ID        uuid.UUID `json:"id"`
 	OrgID     uuid.UUID `json:"org_id"`
 	Name      string    `json:"name"`

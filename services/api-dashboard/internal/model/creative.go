@@ -14,7 +14,8 @@ const (
 	TypeVideo CreativeType = "video"
 )
 
-type Creative struct {
+// Creative represents a creative asset in campaigns.
+  type Creative struct {
 	ID            uuid.UUID    `json:"id"`
 	OrgID         uuid.UUID    `json:"org_id"`
 	CampaignID    uuid.UUID    `json:"campaign_id"`

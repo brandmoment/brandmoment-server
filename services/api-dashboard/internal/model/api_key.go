@@ -6,7 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type APIKey struct {
+// APIKey represents a user's API key.
+  type APIKey struct {
 	ID        uuid.UUID  `json:"id"`
 	OrgID     uuid.UUID  `json:"org_id"`
 	AppID     uuid.UUID  `json:"app_id"`

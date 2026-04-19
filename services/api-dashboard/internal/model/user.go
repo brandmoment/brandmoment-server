@@ -6,7 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type User struct {
+// User represents a user in the system.
+  type User struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`

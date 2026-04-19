@@ -6,7 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type OrgInvite struct {
+// OrgInvite represents an organization invitation.
+  type OrgInvite struct {
 	ID         uuid.UUID  `json:"id"`
 	OrgID      uuid.UUID  `json:"org_id"`
 	Email      string     `json:"email"`

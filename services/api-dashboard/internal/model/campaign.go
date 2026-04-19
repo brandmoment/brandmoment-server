@@ -36,7 +36,8 @@ type CampaignTargeting struct {
 	Interests []string  `json:"interests"`
 }
 
-type Campaign struct {
+// Campaign represents a marketing campaign.
+  type Campaign struct {
 	ID          uuid.UUID         `json:"id"`
 	OrgID       uuid.UUID         `json:"org_id"`
 	Name        string            `json:"name"`
