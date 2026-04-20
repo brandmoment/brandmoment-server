@@ -1,6 +1,6 @@
 # Go Test Generator — Fine-Tuning Dataset
 
-Цель — обучить `gemini-1.5-flash-001` генерировать table-driven unit-тесты в стиле repository-слоя BrandMoment.
+Цель — дообучить `gpt-4o-mini` генерировать table-driven unit-тесты в стиле repository-слоя BrandMoment.
 
 ## Содержание
 
@@ -27,53 +27,64 @@ finetune/go-test-gen/
 
 - Тип: **генерация** (код в нашем стеке)
 - Датасет: ≥ 50 примеров, ≥ 20% реальных — у нас **100% реальных** (51 пара).
-- Формат: OpenAI messages (system + user + assistant), как того требует спек.
-- Baseline: 10 eval через `gemini-1.5-flash-001` без тюна.
-- Клиент: подготовлен, **не запускался**.
+- Формат: OpenAI `messages` (system + user + assistant), как того требует спек.
+- Baseline: 10 eval через `gpt-4o-mini` без тюна.
+- Клиент: подготовлен, **не запускается без явного `--execute` флага**.
 
 ## Модели
 
 | Назначение | Модель |
 |---|---|
-| Baseline (без тюна) | `models/gemini-1.5-flash-001` |
-| База для тюна | `models/gemini-1.5-flash-001-tuning` |
+| Baseline (без тюна) | `gpt-4o-mini` |
+| База для тюна | `gpt-4o-mini-2024-07-18` |
 
-**Почему Gemini, а не gpt-4o-mini**: нет доступа к OpenAI API. Датасет хранится в OpenAI-совместимом формате (task.txt спек), `tune_client.py` конвертирует в Gemini-формат `{text_input, output}` на лету.
+## Стоимость
+
+- Baseline (10 inference запросов) — ~$0.01
+- Fine-tuning одного прогона (41 пример × 5 эпох) — ~$0.25
+- Инференс тюненной модели на 10 eval — ~$0.01
+
+**Итого на всю задачу — меньше $0.50.**
 
 ## Воспроизведение
 
 ```bash
-# 1. Установить зависимости
-pip install google-genai
+# 1. Создать venv и поставить SDK
+python3 -m venv finetune/go-test-gen/.venv
+finetune/go-test-gen/.venv/bin/pip install -r finetune/go-test-gen/requirements.txt
 
-# 2. Положить ключ в env (ключ получить на aistudio.google.com)
-export GEMINI_API_KEY="AIza..."
+# 2. Положить ключ в env
+export OPENAI_API_KEY="sk-..."
 
 # 3. (опционально) Пересобрать датасет из свежих тестов
-python scripts/extract_pairs.py \
-    --source ../../services/api-dashboard/internal/repository \
-    --out data/raw/extracted.jsonl
+finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/extract_pairs.py \
+    --source services/api-dashboard/internal/repository \
+    --out finetune/go-test-gen/data/raw/extracted.jsonl
 
-python scripts/split.py \
-    --input data/raw/extracted.jsonl \
-    --train data/train.jsonl \
-    --eval  data/eval.jsonl \
+finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/split.py \
+    --input finetune/go-test-gen/data/raw/extracted.jsonl \
+    --train finetune/go-test-gen/data/train.jsonl \
+    --eval  finetune/go-test-gen/data/eval.jsonl \
     --eval-size 10 --seed 42
 
 # 4. Провалидировать
-python scripts/validate.py data/train.jsonl data/eval.jsonl
+finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/validate.py \
+    finetune/go-test-gen/data/train.jsonl \
+    finetune/go-test-gen/data/eval.jsonl
 
-# 5. Замерить baseline (~1 минута, 4.5s между запросами ради RPM-лимитов)
-python scripts/baseline.py \
-    --eval data/eval.jsonl \
-    --out-md baseline/responses.md \
-    --out-jsonl baseline/responses.jsonl
+# 5. Замерить baseline (~30 секунд)
+finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/baseline.py \
+    --eval finetune/go-test-gen/data/eval.jsonl \
+    --out-md finetune/go-test-gen/baseline/responses.md \
+    --out-jsonl finetune/go-test-gen/baseline/responses.jsonl
 
 # 6. Посмотреть план тюна (ничего не отправляется)
-python scripts/tune_client.py --train data/train.jsonl
+finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/tune_client.py \
+    --train finetune/go-test-gen/data/train.jsonl
 
-# 7. Запустить тюн по-настоящему (НЕ для сдачи — только если хочешь проверить)
-# python scripts/tune_client.py --train data/train.jsonl --execute
+# 7. Запустить тюн по-настоящему (для сдачи — задание запрещает, делай только если хочешь проверить)
+# finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/tune_client.py \
+#     --train finetune/go-test-gen/data/train.jsonl --execute
 ```
 
 ## Формат данных
@@ -88,12 +99,13 @@ python scripts/tune_client.py --train data/train.jsonl
 ]}
 ```
 
+Формат **ровно такой**, какой требует OpenAI Fine-tuning API — загружается в `/v1/files` как есть, без конверсий.
+
 ## Критерии оценки
 
 См. [criteria.md](criteria.md). Коротко: 12-балльная шкала по трём блокам (формальная корректность, структурное сходство с эталоном, project-specific конвенции). Цель файнтюна — `tuned_avg ≥ baseline_avg + 4`.
 
 ## Безопасность
 
-- API-ключ — только из `$GEMINI_API_KEY` env var; в код не попадает.
-- `.env` и `*.key` — в локальном `.gitignore`.
-- Исходный ключ, засветившийся в истории переписки, **был ротирован** до запуска.
+- API-ключ — только из `$OPENAI_API_KEY` env var; в код не попадает.
+- `.env`, `*.key`, `.venv` — в локальном `.gitignore`.

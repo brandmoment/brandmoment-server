@@ -1,20 +1,19 @@
 """
-Baseline runner: feed every eval example to the BASE Gemini model (no tuning)
+Baseline runner: feed every eval example to the BASE OpenAI model (no tuning)
 and save its responses. This produces the "before" snapshot we will compare
 against the fine-tuned model later.
 
 Produces:
-    baseline/responses.md   — human-readable side-by-side (input / reference / baseline)
+    baseline/responses.md    — human-readable side-by-side (input / reference / baseline)
     baseline/responses.jsonl — machine-readable copy for later scoring
 
 Usage:
-    export GEMINI_API_KEY=...
-    pip install google-genai
+    export OPENAI_API_KEY=sk-...
+    pip install -r requirements.txt
     python scripts/baseline.py \
         --eval data/eval.jsonl \
         --out-md baseline/responses.md \
-        --out-jsonl baseline/responses.jsonl \
-        --model gemini-1.5-flash-001
+        --out-jsonl baseline/responses.jsonl
 """
 
 from __future__ import annotations
@@ -23,7 +22,6 @@ import argparse
 import json
 import os
 import sys
-import time
 from pathlib import Path
 
 
@@ -34,32 +32,31 @@ def main() -> int:
     parser.add_argument("--out-jsonl", type=Path, required=True)
     parser.add_argument(
         "--model",
-        default="gemini-1.5-flash-001",
-        help="base model id (must match the tuning base, minus the -tuning suffix)",
+        default="gpt-4o-mini",
+        help="base model id (same family we will fine-tune from)",
     )
     parser.add_argument(
-        "--sleep",
+        "--temperature",
         type=float,
-        default=4.5,
-        help="seconds between requests to stay under free-tier RPM limits",
+        default=0.2,
+        help="low temperature to keep baseline deterministic-ish",
     )
     args = parser.parse_args()
 
-    api_key = os.environ.get("GEMINI_API_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        print("error: GEMINI_API_KEY is not set", file=sys.stderr)
+        print("error: OPENAI_API_KEY is not set", file=sys.stderr)
         return 2
 
     try:
-        from google import genai
-        from google.genai import types
+        from openai import OpenAI
     except ImportError:
-        print("error: google-genai is not installed. Run: pip install google-genai", file=sys.stderr)
+        print("error: openai is not installed. Run: pip install -r requirements.txt", file=sys.stderr)
         return 2
 
-    client = genai.Client(api_key=api_key)
+    client = OpenAI(api_key=api_key)
 
-    examples = []
+    examples: list[dict] = []
     with args.eval.open("r", encoding="utf-8") as fh:
         for line in fh:
             if line.strip():
@@ -67,38 +64,33 @@ def main() -> int:
 
     print(f"running baseline on {len(examples)} example(s) with model={args.model}")
 
-    results = []
+    results: list[dict] = []
     for idx, ex in enumerate(examples, start=1):
-        system = ex["messages"][0]["content"]
-        user = ex["messages"][1]["content"]
-        reference = ex["messages"][2]["content"]
+        messages = ex["messages"]
+        # Reference is the "ground truth" assistant reply; we send system + user only.
+        input_messages = [m for m in messages if m["role"] in ("system", "user")]
+        reference = next((m["content"] for m in messages if m["role"] == "assistant"), "")
 
         print(f"  [{idx}/{len(examples)}] calling model...", flush=True)
         try:
-            resp = client.models.generate_content(
-                model=f"models/{args.model}",
-                contents=user,
-                config=types.GenerateContentConfig(
-                    system_instruction=system,
-                    temperature=0.2,
-                ),
+            resp = client.chat.completions.create(
+                model=args.model,
+                messages=input_messages,
+                temperature=args.temperature,
             )
-            output = (resp.text or "").strip()
+            output = (resp.choices[0].message.content or "").strip()
             error = None
-        except Exception as exc:  # noqa: BLE001 — we want any failure captured
+        except Exception as exc:  # noqa: BLE001 — capture any failure
             output = ""
             error = str(exc)
 
         results.append({
             "index": idx,
-            "user": user,
+            "user": next(m["content"] for m in messages if m["role"] == "user"),
             "reference": reference,
             "baseline_output": output,
             "error": error,
         })
-
-        if idx < len(examples):
-            time.sleep(args.sleep)
 
     args.out_md.parent.mkdir(parents=True, exist_ok=True)
     args.out_jsonl.parent.mkdir(parents=True, exist_ok=True)
@@ -131,7 +123,7 @@ def main() -> int:
 
     ok = sum(1 for r in results if not r["error"])
     print(f"done. {ok}/{len(results)} succeeded. wrote {args.out_md} and {args.out_jsonl}")
-    return 0
+    return 0 if ok == len(results) else 1
 
 
 if __name__ == "__main__":
