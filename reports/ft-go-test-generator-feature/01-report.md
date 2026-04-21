@@ -1,8 +1,8 @@
 # Fine-Tuning Dataset для Go Test Generator — отчёт
 
-**Дата**: 2026-04-20
+**Дата**: 2026-04-20 (updated 2026-04-21)
 **Ветка**: `feature/ft-go-test-generator`
-**Коммиты**: `28acb00`, `80c10b7`
+**Коммиты**: `28acb00`, `80c10b7`, `12cc671`
 **Рабочая директория**: `finetune/go-test-gen/`
 
 ## Цель
@@ -61,7 +61,17 @@ finetune/go-test-gen/
 
 ### Baseline
 
-**Не запущен** — ждём `OPENAI_API_KEY`. Скрипт готов.
+**Запущен** (коммит `12cc671`). 10/10 ответов без ошибок сети, все компилируются.
+
+- **Средний балл**: 4.9/12
+- **Лучшие кейсы**: конвертеры (`pgtypeToUUID`, `uuidToPgtype`) — ~10/12
+- **Худшие кейсы**: ошибки БД (fallback на `pgx.ErrNoRows`, маппинг в `ErrNotFound`) — ~2.7/12
+- **Главная проблема**: модель не знает проектных паттернов (`mockDBTX`, `errSentinel`,
+  `errRow`), придумывает свои моки и сигнатуры
+- **Вывод**: есть большой запас для улучшения через файнтюн — цель после тюна ≥ 8.9/12
+
+Артефакты: `baseline/responses.md` (человекочитаемый, с чек-листами) и
+`baseline/responses.jsonl` (машиночитаемый).
 
 ### Клиент файнтюна
 
@@ -94,34 +104,15 @@ Vertex AI** (платный GCP).
 
 ## Что осталось сделать
 
-### 1. Получить OpenAI API-ключ и пополнить баланс
+### 1. ~~Получить OpenAI API-ключ~~ ✅ сделано
 
-```bash
-# 1. platform.openai.com → API keys → Create new secret key
-# 2. Пополнить баланс: минимум $5 (хватит с запасом)
-export OPENAI_API_KEY="sk-..."  # добавить в ~/.zprofile
-```
+### 2. ~~Установить зависимости~~ ✅ сделано
 
-### 2. Установить зависимости
+### 3. ~~Запустить baseline~~ ✅ сделано (коммит `12cc671`)
 
-```bash
-python3 -m venv finetune/go-test-gen/.venv
-finetune/go-test-gen/.venv/bin/pip install -r finetune/go-test-gen/requirements.txt
-```
+### 4. ~~Заполнить чек-листы в `baseline/responses.md`~~ ✅ сделано
 
-### 3. Запустить baseline (~30 секунд, ~$0.01)
-
-```bash
-finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/baseline.py \
-    --eval finetune/go-test-gen/data/eval.jsonl \
-    --out-md finetune/go-test-gen/baseline/responses.md \
-    --out-jsonl finetune/go-test-gen/baseline/responses.jsonl
-```
-
-### 4. Заполнить чек-листы в `baseline/responses.md`
-
-По каждому из 10 ответов отметить пункты из `criteria.md` (компилируется ли,
-правильный ли нейминг, использует ли `mockDBTX` и т.п.).
+Средний балл 4.9/12, детали выше в разделе **Baseline**.
 
 ### 5. (Опционально для сдачи) Прогнать реальный тюн
 
@@ -135,7 +126,7 @@ finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/tune_client.p
 
 Займёт 10–30 минут, стоит ~$0.25, результат — `ft:gpt-4o-mini:...:go-test-gen:...`.
 
-### 6. Записать видео для сдачи
+### 6. Записать видео для сдачи ← **следующий шаг**
 
 Покажи:
 1. Структуру `finetune/go-test-gen/`
@@ -158,6 +149,6 @@ finetune/go-test-gen/.venv/bin/python finetune/go-test-gen/scripts/tune_client.p
 | Примеров в датасете | ≥50 | **51** |
 | Доля реальных | ≥20% | **100%** |
 | Train/eval split | 80/20 | **41/10** |
-| Baseline прогон | 10 | ждёт ключа |
+| Baseline прогон | 10 | **10/10 ok, avg 4.9/12** |
 | Клиент файнтюна | готов, не запущен | **✅ готов** |
 | Стоимость задачи | n/a | <$0.50 |
