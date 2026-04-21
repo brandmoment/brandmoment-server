@@ -19,6 +19,7 @@ type Handlers struct {
 	PublisherApp  *handler.PublisherAppHandler
 	APIKey        *handler.APIKeyHandler
 	PublisherRule *handler.PublisherRuleHandler
+	RuleParser    *handler.RuleParserHandler
 	Campaign      *handler.CampaignHandler
 	Creative      *handler.CreativeHandler
 }
@@ -48,6 +49,10 @@ func NewRouter(h *Handlers, auth *middleware.Auth) http.Handler {
 			r.Use(auth.RequireRole("admin", "owner"))
 			r.Post("/", h.OrgInvite.Create)
 		})
+
+		// NL → PublisherRule parser (editor+ can use the AI parse endpoint).
+		r.With(auth.RequireRole("editor", "admin", "owner")).
+			Post("/publisher-rules/parse", h.RuleParser.Parse)
 
 		r.Route("/publisher-apps", func(r chi.Router) {
 			// Viewer+ can list and read.

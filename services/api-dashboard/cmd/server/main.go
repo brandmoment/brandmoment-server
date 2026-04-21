@@ -18,6 +18,7 @@ import (
 
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/config"
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/handler"
+	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/llm"
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/middleware"
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/repository"
 	"github.com/brandmoment/brandmoment-server/services/api-dashboard/internal/router"
@@ -97,6 +98,25 @@ func main() {
 	creativeService := service.NewCreativeService(campaignRepo, creativeRepo, tp)
 	creativeHandler := handler.NewCreativeHandler(creativeService)
 
+	// DI — rule parser (LLM-backed, optional: 501 if no API key configured)
+	var ruleParserHandler *handler.RuleParserHandler
+	switch {
+	case cfg.OpenAIAPIKey != "":
+		llmClient := llm.NewOpenAIClient(cfg.OpenAIAPIKey, "")
+		ruleParserSvc := service.NewRuleParserService(llmClient, tp)
+		ruleParserHandler = handler.NewRuleParserHandler(ruleParserSvc)
+	case cfg.GeminiAPIKey != "":
+		geminiClient, err := llm.NewGeminiClient(ctx, cfg.GeminiAPIKey, "")
+		if err != nil {
+			slog.Error("failed to create Gemini client", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		ruleParserSvc := service.NewRuleParserService(geminiClient, tp)
+		ruleParserHandler = handler.NewRuleParserHandler(ruleParserSvc)
+	default:
+		ruleParserHandler = handler.NewRuleParserHandlerDisabled()
+	}
+
 	healthHandler := handler.NewHealthHandler()
 
 	mux := router.NewRouter(&router.Handlers{
@@ -107,6 +127,7 @@ func main() {
 		PublisherApp:  publisherAppHandler,
 		APIKey:        apiKeyHandler,
 		PublisherRule: publisherRuleHandler,
+		RuleParser:    ruleParserHandler,
 		Campaign:      campaignHandler,
 		Creative:      creativeHandler,
 	}, auth)

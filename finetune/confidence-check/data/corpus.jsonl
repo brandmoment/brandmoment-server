@@ -1,0 +1,30 @@
+{"phrase":"Block gambling category","expected":[{"type":"blocklist","config":{"categories":["gambling"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Allow only iOS devices","expected":[{"type":"platform_filter","config":{"mode":"include","platforms":["ios"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Show maximum 5 times per hour","expected":[{"type":"frequency_cap","config":{"max_impressions":5,"window_seconds":3600}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Exclude Russia and Kazakhstan","expected":[{"type":"geo_filter","config":{"mode":"exclude","country_codes":["RU","KZ"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Only show ads in the United States and Canada","expected":[{"type":"geo_filter","config":{"mode":"include","country_codes":["US","CA"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Block domain evil.com","expected":[{"type":"blocklist","config":{"domains":["evil.com"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Allow only the bundle ID com.goodapp.ios","expected":[{"type":"allowlist","config":{"bundle_ids":["com.goodapp.ios"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Show no more than 10 impressions per day","expected":[{"type":"frequency_cap","config":{"max_impressions":10,"window_seconds":86400}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Allow Android and iOS only","expected":[{"type":"platform_filter","config":{"mode":"include","platforms":["android","ios"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Block the bundle com.casino.app","expected":[{"type":"blocklist","config":{"bundle_ids":["com.casino.app"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Exclude Germany from ad delivery","expected":[{"type":"geo_filter","config":{"mode":"exclude","country_codes":["DE"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Cap impressions at 3 per week","expected":[{"type":"frequency_cap","config":{"max_impressions":3,"window_seconds":604800}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Only web and CTV platforms","expected":[{"type":"platform_filter","config":{"mode":"include","platforms":["web","ctv"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Block adult content domains","expected":[{"type":"blocklist","config":{"categories":["adult"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Allow domains news.com and media.org only","expected":[{"type":"allowlist","config":{"domains":["news.com","media.org"]}}],"expected_confidence":"OK","group":"correct"}
+{"phrase":"Do not show casino ads in Russia more than 3 times per day","expected":[{"type":"blocklist","config":{"categories":["gambling"]}},{"type":"geo_filter","config":{"mode":"exclude","country_codes":["RU"]}},{"type":"frequency_cap","config":{"max_impressions":3,"window_seconds":86400}}],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"Premium users only","expected":[],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"Allow everything except gambling","expected":[{"type":"blocklist","config":{"categories":["gambling"]}}],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"No more than twice a day and only in France","expected":[{"type":"frequency_cap","config":{"max_impressions":2,"window_seconds":86400}},{"type":"geo_filter","config":{"mode":"include","country_codes":["FR"]}}],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"Show ads to iOS users in Germany","expected":[{"type":"platform_filter","config":{"mode":"include","platforms":["ios"]}},{"type":"geo_filter","config":{"mode":"include","country_codes":["DE"]}}],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"Block competitors","expected":[],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"Only show once per session","expected":[],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"Block gambling in Russia and Germany, cap at 2 per day","expected":[{"type":"blocklist","config":{"categories":["gambling"]}},{"type":"geo_filter","config":{"mode":"exclude","country_codes":["RU","DE"]}},{"type":"frequency_cap","config":{"max_impressions":2,"window_seconds":86400}}],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"Allow only mobile","expected":[{"type":"platform_filter","config":{"mode":"include","platforms":["ios","android"]}}],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"Limit frequency but only on weekends","expected":[],"expected_confidence":"UNSURE","group":"edge"}
+{"phrase":"kakashki","expected":[],"expected_confidence":"FAIL","group":"noisy"}
+{"phrase":"Block and allow gambling at the same time","expected":[],"expected_confidence":"FAIL","group":"noisy"}
+{"phrase":"Show ads","expected":[],"expected_confidence":"FAIL","group":"noisy"}
+{"phrase":"xyzzy foo bar 123!!!","expected":[],"expected_confidence":"FAIL","group":"noisy"}
+{"phrase":"Do absolutely nothing with all ads everywhere always","expected":[],"expected_confidence":"FAIL","group":"noisy"}

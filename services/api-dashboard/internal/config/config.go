@@ -10,6 +10,8 @@ type Config struct {
 	DatabaseURL       string
 	BetterAuthJWKSURL string
 	OTLPEndpoint      string
+	OpenAIAPIKey      string
+	GeminiAPIKey      string
 }
 
 func Load() (*Config, error) {
@@ -18,6 +20,8 @@ func Load() (*Config, error) {
 		DatabaseURL:       os.Getenv("DATABASE_URL"),
 		BetterAuthJWKSURL: os.Getenv("BETTERAUTH_JWKS_URL"),
 		OTLPEndpoint:      getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
+		OpenAIAPIKey:      os.Getenv("OPENAI_API_KEY"),
+		GeminiAPIKey:      os.Getenv("GEMINI_API_KEY"),
 	}
 
 	if cfg.DatabaseURL == "" {
