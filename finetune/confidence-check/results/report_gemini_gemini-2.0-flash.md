@@ -1,12 +1,12 @@
 # Benchmark Report
 
-**Provider**: openai/gpt-4o-mini  
+**Provider**: gemini/gemini-2.0-flash  
 **Date**: 2026-04-21  
 **Corpus**: 30 phrases
 
-**Overall accuracy**: 23/30 (77%)
+**Overall accuracy**: 5/30 (17%)
 
 | Approach | OK | UNSURE | FAIL | Input Tokens | Output Tokens |
 |---|---|---|---|---|---|
-| constraint | 22 | 0 | 8 | 0 | 0 |
-| self_check | 19 | 11 | 0 | 15146 | 1573 |
+| constraint | 0 | 0 | 30 | 0 | 0 |
+| self_check | 0 | 0 | 30 | 0 | 0 |
