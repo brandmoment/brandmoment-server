@@ -1,0 +1,49 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API Dashboard (Go)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/services/api-dashboard/cmd/server",
+      "env": {
+        "DATABASE_URL": "postgres://brandmoment:brandmoment@localhost:5432/brandmoment?sslmode=disable",
+        "BETTERAUTH_JWKS_URL": "http://localhost:3000/.well-known/jwks.json",
+        "PORT": "8080",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "localhost:4317"
+      },
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Dashboard (Next.js)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "cwd": "${workspaceFolder}/apps/dashboard",
+      "console": "integratedTerminal",
+      "env": {
+        "BETTER_AUTH_SECRET": "change-me-in-production",
+        "BETTER_AUTH_URL": "http://localhost:3000",
+        "NEXT_PUBLIC_APP_URL": "http://localhost:3000",
+        "NEXT_PUBLIC_API_URL": "http://localhost:8080",
+        "DATABASE_URL": "postgres://brandmoment:brandmoment@localhost:5432/brandmoment?sslmode=disable"
+      }
+    },
+    {
+      "name": "Seed Data",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/infra/seed",
+      "cwd": "${workspaceFolder}/infra/seed"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack (API + Dashboard)",
+      "configurations": ["API Dashboard (Go)", "Dashboard (Next.js)"]
+    }
+  ]
+}
