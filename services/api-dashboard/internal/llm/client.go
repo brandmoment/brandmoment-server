@@ -2,7 +2,10 @@
 // implementations for OpenAI and Gemini.
 package llm
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 // Provider identifies an LLM backend.
 type Provider string
@@ -41,6 +44,22 @@ type ChatResponse struct {
 	Content      string `json:"content"`
 	InputTokens  int    `json:"input_tokens"`
 	OutputTokens int    `json:"output_tokens"`
+}
+
+// StripMarkdownFences removes ```json ... ``` wrapping that some models add
+// despite being told not to.
+func StripMarkdownFences(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "```") {
+		if idx := strings.Index(s, "\n"); idx != -1 {
+			s = s[idx+1:]
+		}
+		if idx := strings.LastIndex(s, "```"); idx != -1 {
+			s = s[:idx]
+		}
+		s = strings.TrimSpace(s)
+	}
+	return s
 }
 
 // ChatClient is the common interface for LLM chat completion providers.

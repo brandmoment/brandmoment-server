@@ -110,11 +110,11 @@ func buildClient(t *testing.T) (llm.ChatClient, string) {
 		return llm.NewOpenAIClient(key, "gpt-4o-mini"), "openai/gpt-4o-mini"
 	}
 	if key := os.Getenv("GEMINI_API_KEY"); key != "" {
-		c, err := llm.NewGeminiClient(context.Background(), key, "gemini-2.0-flash")
+		c, err := llm.NewGeminiClient(context.Background(), key, "gemini-2.5-flash")
 		if err != nil {
 			t.Fatalf("create gemini client: %v", err)
 		}
-		return c, "gemini/gemini-2.0-flash"
+		return c, "gemini/gemini-2.5-flash"
 	}
 	t.Skip("no OPENAI_API_KEY or GEMINI_API_KEY set; skipping live benchmark")
 	return nil, ""

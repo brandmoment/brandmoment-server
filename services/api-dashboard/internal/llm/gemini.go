@@ -8,7 +8,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-const defaultGeminiModel = "gemini-2.0-flash"
+const defaultGeminiModel = "gemini-2.5-flash"
 
 // geminiClient wraps the Google generative-ai-go SDK.
 type geminiClient struct {

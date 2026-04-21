@@ -147,7 +147,8 @@ func (s *RuleParserService) plainParse(ctx context.Context, phrase string) (stri
 
 // parseRulesJSON decodes a JSON array of {type, config} objects into model.PublisherRule slice.
 func parseRulesJSON(raw string) ([]model.PublisherRule, error) {
-	if strings.TrimSpace(raw) == "" {
+	raw = llm.StripMarkdownFences(raw)
+	if raw == "" {
 		return nil, nil
 	}
 	type rawRule struct {

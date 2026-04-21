@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -47,11 +48,12 @@ func CheckSelfCheck(ctx context.Context, client ChatClient, phrase string) (stri
 		},
 	})
 	if err != nil {
+		slog.ErrorContext(ctx, "self-check parse call failed", slog.String("error", err.Error()))
 		return "", SelfCheckResult{Status: ConfidenceStatusFail, Latency: time.Since(start)}
 	}
 	totalIn += parseResp.InputTokens
 	totalOut += parseResp.OutputTokens
-	rulesJSON := strings.TrimSpace(parseResp.Content)
+	rulesJSON := StripMarkdownFences(strings.TrimSpace(parseResp.Content))
 
 	// Call 2: verify.
 	verifyPrompt := fmt.Sprintf(selfCheckVerifyPromptTemplate, phrase, rulesJSON)
