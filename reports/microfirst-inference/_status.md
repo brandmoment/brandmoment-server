@@ -6,13 +6,13 @@ Created: 2026-04-24  |  Updated: 2026-04-24
 
 ## Completion Summary
 
-✓ Spec → Implement → Validate → Report
+✓ Spec → Implement → Validate → Report → Tune (marginFloor 0.05 → 0.02)
 
 - 7 new files shipped: embedding classifier + two-level router + 30 unit tests (78 total in llm/, 541 in suite)
 - All validation checks green: `go build`, `go vet`, `go test`
-- Benchmark infrastructure ready (awaits OPENAI_API_KEY for live run)
-- Prototype builder offline utility ready (awaits BUILD_PROTOTYPES=1 + key for generation)
-- Handler wiring deferred to next session once threshold tuning is observed
+- Live benchmark run twice (margin 0.05 and 0.02) — reports saved in results/
+- Tuning done: default marginFloor 0.05 → 0.02 (83% accuracy, -8% LLM calls, -12% latency)
+- Follow-ups: ambiguous + high-margin → llm_direct, skip self-check on FAIL, beef up valid prototype for frequency_cap phrases
 
 ## Deliverables
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -57,10 +58,25 @@ func TestMicroFirstBenchmark(t *testing.T) {
 	chatClient := llm.NewOpenAIClient(apiKey, "gpt-4o-mini")
 	embedClient := llm.NewOpenAIEmbedClient(apiKey, "text-embedding-3-small")
 
+	// Margin floor — tunable via MARGIN_FLOOR env (default 0.02, tuned from
+	// initial 0.05 after comparing report_microfirst_margin0050.md vs
+	// report_microfirst_margin0020.md — the lower threshold routes the
+	// self-contradicting "Block and allow gambling" phrase to micro_early_fail
+	// without LLM, reducing total LLM calls by 8% and raising accuracy to 83%).
+	marginFloor := 0.02
+	if raw := os.Getenv("MARGIN_FLOOR"); raw != "" {
+		v, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			t.Fatalf("invalid MARGIN_FLOOR=%q: %v", raw, err)
+		}
+		marginFloor = v
+	}
+	t.Logf("using marginFloor=%.3f", marginFloor)
+
 	// Build parsers.
 	baseline := llm.NewMultiStageParser(chatClient)
 	micro := llm.NewEmbedMicro(embedClient, prototypes)
-	twoLevel := llm.NewTwoLevelParser(micro, llm.NewMultiStageParser(chatClient), 0.05)
+	twoLevel := llm.NewTwoLevelParser(micro, llm.NewMultiStageParser(chatClient), marginFloor)
 
 	rows := make([]microRow, 0, len(corpus))
 
@@ -156,7 +172,7 @@ func TestMicroFirstBenchmark(t *testing.T) {
 
 	writeMicroFirstReport(t, rows, total, baselineLLMTotal, twoLevelLLMTotal, llmSavedPct,
 		routeCounts, baselineConfCounts, twoLevelConfCounts,
-		accuracyBaseOK, accuracyTwoOK)
+		accuracyBaseOK, accuracyTwoOK, marginFloor)
 }
 
 // loadPrototypes reads prototypes.json from the finetune data directory.
@@ -193,6 +209,7 @@ func writeMicroFirstReport(
 	routeCounts map[llm.Route]int,
 	baselineConf, twoLevelConf map[llm.ConfidenceStatus]int,
 	accBase, accTwo int,
+	marginFloor float64,
 ) {
 	t.Helper()
 
@@ -203,12 +220,14 @@ func writeMicroFirstReport(
 		t.Logf("could not create results dir: %v", err)
 		return
 	}
-	outPath := filepath.Join(resultsDir, "report_microfirst.md")
+	floorTag := strings.ReplaceAll(fmt.Sprintf("%.3f", marginFloor), ".", "")
+	outPath := filepath.Join(resultsDir, fmt.Sprintf("report_microfirst_margin%s.md", floorTag))
 
 	var sb strings.Builder
 	sb.WriteString("# Micro-First Benchmark Report\n\n")
 	sb.WriteString(fmt.Sprintf("**Date**: %s  \n", time.Now().Format("2006-01-02")))
-	sb.WriteString(fmt.Sprintf("**Corpus**: %d phrases\n\n", total))
+	sb.WriteString(fmt.Sprintf("**Corpus**: %d phrases  \n", total))
+	sb.WriteString(fmt.Sprintf("**Margin floor**: %.3f\n\n", marginFloor))
 
 	sb.WriteString("## Per-Phrase Results\n\n")
 	sb.WriteString("| # | Phrase | Group | Expected | Micro Intent | Margin | Route | Baseline Conf | Two-Level Conf | Baseline ms | Two-Level ms | Baseline LLM | TwoLevel LLM |\n")
