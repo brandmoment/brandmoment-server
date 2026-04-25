@@ -29,27 +29,29 @@ const validRulesJSON = `[{"type":"blocklist","config":{"domains":["evil.com"],"b
 // TestTwoLevelParser_Parse covers all routing paths.
 func TestTwoLevelParser_Parse(t *testing.T) {
 	const marginFloor = 0.05
+	const ruleTypeFloor = 0.10
 
 	tests := []struct {
-		name           string
-		microResult    MicroResult
-		microErr       error
-		llmCallCount   int // expected LLM Complete calls
-		llmResponses   []ChatResponse
-		wantRoute      Route
-		wantConfidence ConfidenceStatus
-		wantUsedLLM    bool
-		wantErr        bool
+		name              string
+		microResult       MicroResult
+		microErr          error
+		llmCallCount      int // expected LLM Complete calls
+		llmResponses      []ChatResponse
+		wantRoute         Route
+		wantConfidence    ConfidenceStatus
+		wantUsedLLM       bool
+		wantLLMTotalCalls int // if >0, check result.LLM.TotalCalls
+		wantErr           bool
 	}{
 		{
-			name: "gibberish high margin → early fail, no LLM",
+			name: "invalid high margin → early fail, no LLM",
 			microResult: MicroResult{
-				Intent: IntentGibberish,
+				Intent: IntentInvalid,
 				Top1:   0.95,
-				Margin: 0.30,
+				Margin: 0.30, // ≥ marginFloor
 				Scores: map[Intent]float64{
-					IntentGibberish: 0.95,
-					IntentValid:     0.65,
+					IntentInvalid:   0.95,
+					IntentBlocklist: 0.65,
 					IntentAmbiguous: 0.50,
 				},
 			},
@@ -59,14 +61,14 @@ func TestTwoLevelParser_Parse(t *testing.T) {
 			wantUsedLLM:    false,
 		},
 		{
-			name: "gibberish low margin → escalate with check (not early fail)",
+			name: "invalid low margin → escalate with check (not early fail)",
 			microResult: MicroResult{
-				Intent: IntentGibberish,
+				Intent: IntentInvalid,
 				Top1:   0.60,
-				Margin: 0.02, // below marginFloor
+				Margin: 0.02, // < marginFloor
 				Scores: map[Intent]float64{
-					IntentGibberish: 0.60,
-					IntentValid:     0.58,
+					IntentInvalid:   0.60,
+					IntentBlocklist: 0.58,
 					IntentAmbiguous: 0.40,
 				},
 			},
@@ -83,37 +85,15 @@ func TestTwoLevelParser_Parse(t *testing.T) {
 			wantUsedLLM:    true,
 		},
 		{
-			name: "valid high margin → LLM direct (no self-check)",
-			microResult: MicroResult{
-				Intent: IntentValid,
-				Top1:   0.90,
-				Margin: 0.20,
-				Scores: map[Intent]float64{
-					IntentValid:     0.90,
-					IntentAmbiguous: 0.70,
-					IntentGibberish: 0.40,
-				},
-			},
-			// LLM: stage1 + stage2 only = 2 calls (no self-check)
-			llmCallCount: 2,
-			llmResponses: []ChatResponse{
-				{Content: `{"count":1,"rules":[{"type":"blocklist","summary":"block evil.com"}]}`, InputTokens: 20, OutputTokens: 10},
-				{Content: `{"domains":["evil.com"],"bundle_ids":[]}`, InputTokens: 15, OutputTokens: 8},
-			},
-			wantRoute:      RouteLLMDirect,
-			wantConfidence: ConfidenceStatusOK,
-			wantUsedLLM:    true,
-		},
-		{
-			name: "ambiguous → LLM with check",
+			name: "ambiguous high margin → LLM with check (ambiguous always escalates)",
 			microResult: MicroResult{
 				Intent: IntentAmbiguous,
 				Top1:   0.80,
-				Margin: 0.15,
+				Margin: 0.50, // high margin but still escalates
 				Scores: map[Intent]float64{
 					IntentAmbiguous: 0.80,
-					IntentValid:     0.65,
-					IntentGibberish: 0.40,
+					IntentBlocklist: 0.30,
+					IntentInvalid:   0.20,
 				},
 			},
 			// LLM: stage1 + stage2 + self_check (parse+verify) = 4 calls
@@ -129,15 +109,38 @@ func TestTwoLevelParser_Parse(t *testing.T) {
 			wantUsedLLM:    true,
 		},
 		{
-			name: "valid low margin → LLM with check",
+			name: "blocklist high margin → micro_answer (extract-only, 1 LLM call)",
 			microResult: MicroResult{
-				Intent: IntentValid,
-				Top1:   0.60,
-				Margin: 0.02, // below marginFloor
+				Intent: IntentBlocklist,
+				Top1:   0.92,
+				Margin: 0.25, // ≥ ruleTypeFloor
 				Scores: map[Intent]float64{
-					IntentValid:     0.60,
-					IntentAmbiguous: 0.58,
-					IntentGibberish: 0.40,
+					IntentBlocklist: 0.92,
+					IntentAllowlist: 0.67,
+					IntentAmbiguous: 0.40,
+				},
+			},
+			// ExtractOnly: 1 LLM call (extract) only — no analyze, no self-check
+			llmCallCount: 1,
+			llmResponses: []ChatResponse{
+				{Content: `{"domains":["evil.com"],"bundle_ids":[]}`, InputTokens: 15, OutputTokens: 8},
+			},
+			wantRoute:         RouteMicroAnswer,
+			wantConfidence:    ConfidenceStatusOK,
+			wantUsedLLM:       true,
+			wantLLMTotalCalls: 1,
+		},
+		{
+			name: "blocklist low margin → LLM with check (below ruleTypeFloor)",
+			microResult: MicroResult{
+				Intent: IntentBlocklist,
+				Top1:   0.65,
+				Margin: 0.04, // < ruleTypeFloor (0.10) but ≥ marginFloor (0.05)? No: 0.04 < 0.05
+				// Actually 0.04 < marginFloor=0.05 and < ruleTypeFloor=0.10 → goes to llm_with_check
+				Scores: map[Intent]float64{
+					IntentBlocklist: 0.65,
+					IntentAllowlist: 0.61,
+					IntentAmbiguous: 0.40,
 				},
 			},
 			// LLM: stage1 + stage2 + self_check (parse+verify) = 4 calls
@@ -186,7 +189,7 @@ func TestTwoLevelParser_Parse(t *testing.T) {
 				},
 			}
 
-			parser := NewTwoLevelParser(microMock, makeMockParser(llmMock), marginFloor)
+			parser := NewTwoLevelParser(microMock, makeMockParser(llmMock), marginFloor, ruleTypeFloor)
 			result, err := parser.Parse(context.Background(), "block evil.com")
 
 			if tt.wantErr {
@@ -225,6 +228,14 @@ func TestTwoLevelParser_Parse(t *testing.T) {
 				}
 			}
 
+			if tt.wantLLMTotalCalls > 0 {
+				if result.LLM == nil {
+					t.Error("LLM result is nil, cannot check TotalCalls")
+				} else if result.LLM.TotalCalls != tt.wantLLMTotalCalls {
+					t.Errorf("LLM.TotalCalls = %d, want %d", result.LLM.TotalCalls, tt.wantLLMTotalCalls)
+				}
+			}
+
 			if callIndex != tt.llmCallCount {
 				t.Errorf("LLM calls = %d, want %d", callIndex, tt.llmCallCount)
 			}
@@ -248,7 +259,7 @@ func TestTwoLevelParser_MicroError_Propagated(t *testing.T) {
 		},
 	}
 
-	parser := NewTwoLevelParser(microMock, makeMockParser(llmMock), 0.05)
+	parser := NewTwoLevelParser(microMock, makeMockParser(llmMock), 0.05, 0.10)
 	_, err := parser.Parse(context.Background(), "some phrase")
 
 	if err == nil {

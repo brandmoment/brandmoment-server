@@ -163,15 +163,23 @@ func TestMeanVector_PanicOnDimMismatch(t *testing.T) {
 
 // ---- EmbedMicro.Classify tests ----
 
-// fixed vectors for intent prototypes:
+// fixed vectors for intent prototypes (one orthogonal axis per class, 7 dims):
 //
-//	valid:     (1, 0, 0)
-//	ambiguous: (0, 1, 0)
-//	gibberish: (0, 0, 1)
+//	blocklist:       (1, 0, 0, 0, 0, 0, 0)
+//	allowlist:       (0, 1, 0, 0, 0, 0, 0)
+//	geo_filter:      (0, 0, 1, 0, 0, 0, 0)
+//	platform_filter: (0, 0, 0, 1, 0, 0, 0)
+//	frequency_cap:   (0, 0, 0, 0, 1, 0, 0)
+//	ambiguous:       (0, 0, 0, 0, 0, 1, 0)
+//	invalid:         (0, 0, 0, 0, 0, 0, 1)
 var testPrototypes = map[Intent][]float32{
-	IntentValid:     {1, 0, 0},
-	IntentAmbiguous: {0, 1, 0},
-	IntentGibberish: {0, 0, 1},
+	IntentBlocklist:      {1, 0, 0, 0, 0, 0, 0},
+	IntentAllowlist:      {0, 1, 0, 0, 0, 0, 0},
+	IntentGeoFilter:      {0, 0, 1, 0, 0, 0, 0},
+	IntentPlatformFilter: {0, 0, 0, 1, 0, 0, 0},
+	IntentFrequencyCap:   {0, 0, 0, 0, 1, 0, 0},
+	IntentAmbiguous:      {0, 0, 0, 0, 0, 1, 0},
+	IntentInvalid:        {0, 0, 0, 0, 0, 0, 1},
 }
 
 func TestEmbedMicro_Classify(t *testing.T) {
@@ -185,30 +193,37 @@ func TestEmbedMicro_Classify(t *testing.T) {
 		wantScoreGT float64 // top1 must be > this
 	}{
 		{
-			name:        "valid phrase — vector aligned with valid prototype",
-			embedVec:    []float32{1, 0, 0},
-			wantIntent:  IntentValid,
-			wantMargin:  1.0, // cos(valid)=1, cos(ambiguous)=0, margin=1
+			name:        "blocklist phrase — vector aligned with blocklist prototype",
+			embedVec:    []float32{1, 0, 0, 0, 0, 0, 0},
+			wantIntent:  IntentBlocklist,
+			wantMargin:  1.0, // cos(blocklist)=1, all others=0, margin=1
 			wantScoreGT: 0.9,
 		},
 		{
-			name:        "gibberish phrase — vector aligned with gibberish prototype",
-			embedVec:    []float32{0, 0, 1},
-			wantIntent:  IntentGibberish,
+			name:        "invalid phrase — vector aligned with invalid prototype",
+			embedVec:    []float32{0, 0, 0, 0, 0, 0, 1},
+			wantIntent:  IntentInvalid,
 			wantMargin:  1.0,
 			wantScoreGT: 0.9,
 		},
 		{
 			name:        "ambiguous phrase — vector aligned with ambiguous prototype",
-			embedVec:    []float32{0, 1, 0},
+			embedVec:    []float32{0, 0, 0, 0, 0, 1, 0},
 			wantIntent:  IntentAmbiguous,
 			wantMargin:  1.0,
 			wantScoreGT: 0.9,
 		},
 		{
-			name:        "near-valid phrase — close to valid but not perfect",
-			embedVec:    []float32{0.9, 0.3, 0.1},
-			wantIntent:  IntentValid,
+			name:        "geo_filter phrase — vector aligned with geo_filter prototype",
+			embedVec:    []float32{0, 0, 1, 0, 0, 0, 0},
+			wantIntent:  IntentGeoFilter,
+			wantMargin:  1.0,
+			wantScoreGT: 0.9,
+		},
+		{
+			name:        "near-blocklist phrase — close to blocklist but not perfect",
+			embedVec:    []float32{0.9, 0.3, 0.1, 0, 0, 0, 0},
+			wantIntent:  IntentBlocklist,
 			wantScoreGT: 0.8,
 		},
 		{
@@ -259,8 +274,11 @@ func TestEmbedMicro_Classify(t *testing.T) {
 				t.Errorf("InputTokens = %d, want 10", result.InputTokens)
 			}
 
-			// Verify scores map contains all three intents.
-			for _, intent := range []Intent{IntentValid, IntentAmbiguous, IntentGibberish} {
+			// Verify scores map contains all seven intents.
+			for _, intent := range []Intent{
+				IntentBlocklist, IntentAllowlist, IntentGeoFilter,
+				IntentPlatformFilter, IntentFrequencyCap, IntentAmbiguous, IntentInvalid,
+			} {
 				if _, ok := result.Scores[intent]; !ok {
 					t.Errorf("Scores missing intent %q", intent)
 				}
@@ -285,5 +303,46 @@ func TestEmbedMicro_Classify_ErrorPropagation(t *testing.T) {
 	}
 	if !errors.Is(err, wantErr) {
 		t.Errorf("error chain: got %v, want to contain %v", err, wantErr)
+	}
+}
+
+// TestEmbedMicro_AllSevenIntents verifies that each of the seven intent prototypes
+// is correctly classified when the input vector exactly matches that prototype.
+func TestEmbedMicro_AllSevenIntents(t *testing.T) {
+	intents := []struct {
+		intent Intent
+		vec    []float32
+	}{
+		{IntentBlocklist, []float32{1, 0, 0, 0, 0, 0, 0}},
+		{IntentAllowlist, []float32{0, 1, 0, 0, 0, 0, 0}},
+		{IntentGeoFilter, []float32{0, 0, 1, 0, 0, 0, 0}},
+		{IntentPlatformFilter, []float32{0, 0, 0, 1, 0, 0, 0}},
+		{IntentFrequencyCap, []float32{0, 0, 0, 0, 1, 0, 0}},
+		{IntentAmbiguous, []float32{0, 0, 0, 0, 0, 1, 0}},
+		{IntentInvalid, []float32{0, 0, 0, 0, 0, 0, 1}},
+	}
+
+	for _, tc := range intents {
+		t.Run(string(tc.intent), func(t *testing.T) {
+			mockEmbed := &mockEmbedClient{
+				embedFn: func(ctx context.Context, text string) (EmbedResponse, error) {
+					return EmbedResponse{Vector: tc.vec, InputTokens: 5}, nil
+				},
+			}
+			classifier := NewEmbedMicro(mockEmbed, testPrototypes)
+			result, err := classifier.Classify(context.Background(), "phrase")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if result.Intent != tc.intent {
+				t.Errorf("Intent = %q, want %q", result.Intent, tc.intent)
+			}
+			if math.Abs(result.Top1-1.0) > 1e-5 {
+				t.Errorf("Top1 = %f, want 1.0", result.Top1)
+			}
+			if math.Abs(result.Margin-1.0) > 1e-5 {
+				t.Errorf("Margin = %f, want 1.0 (orthogonal prototypes)", result.Margin)
+			}
+		})
 	}
 }

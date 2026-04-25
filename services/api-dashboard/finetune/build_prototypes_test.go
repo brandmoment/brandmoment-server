@@ -34,19 +34,27 @@ func TestBuildPrototypes(t *testing.T) {
 		t.Fatal("corpus is empty")
 	}
 
-	// Map from group → intent label.
-	groupToIntent := map[string]llm.Intent{
-		"correct": llm.IntentValid,
-		"edge":    llm.IntentAmbiguous,
-		"noisy":   llm.IntentGibberish,
-	}
-
 	// Accumulate embeddings per intent.
+	// Label derivation (A2 — 7 classes):
+	//   correct → use expected[0].type verbatim (covers 5 rule types)
+	//   edge    → IntentAmbiguous (multi-rule / unclear scope)
+	//   noisy   → IntentInvalid   (gibberish / out-of-scope)
 	byIntent := make(map[llm.Intent][][]float32)
 
 	for i, entry := range corpus {
-		intent, ok := groupToIntent[entry.Group]
-		if !ok {
+		var intent llm.Intent
+		switch entry.Group {
+		case "correct":
+			if len(entry.Expected) == 0 {
+				t.Logf("[%d] skip correct entry with no expected rules: %q", i+1, entry.Phrase)
+				continue
+			}
+			intent = llm.Intent(entry.Expected[0].Type)
+		case "edge":
+			intent = llm.IntentAmbiguous
+		case "noisy":
+			intent = llm.IntentInvalid
+		default:
 			t.Logf("[%d] skip unknown group %q for phrase %q", i+1, entry.Group, entry.Phrase)
 			continue
 		}

@@ -159,6 +159,51 @@ func (p *MultiStageParser) Parse(ctx context.Context, phrase string) MultiStageR
 	return result
 }
 
+// ExtractOnly skips stage 1 (analyze) and runs stages 2+3 directly using the
+// caller-supplied ruleType. It is used by TwoLevelParser on the RouteMicroAnswer
+// path when micro is confident enough about the rule type to avoid the analyze call.
+//
+// Returns a MultiStageResult with TotalCalls == 1 (extract only; assemble is free).
+// On extract error, RulesJSON is "[]" and Confidence is ConfidenceStatusFail.
+func (p *MultiStageParser) ExtractOnly(ctx context.Context, phrase, ruleType string) MultiStageResult {
+	var result MultiStageResult
+
+	// Construct a synthetic analysisRule from the caller-supplied type.
+	ar := analysisRule{Type: ruleType, Summary: phrase}
+
+	// Stage 2: extract config (single call).
+	cfg, stage2, err := p.extractConfig(ctx, phrase, ar.Type, ar.Summary)
+	result.Stages = append(result.Stages, StageResult{Stage: "extract_only:" + ruleType,
+		LatencyMS: stage2.LatencyMS, InputTokens: stage2.InputTokens, OutputTokens: stage2.OutputTokens})
+	result.TotalCalls++
+	result.TotalIn += stage2.InputTokens
+	result.TotalOut += stage2.OutputTokens
+	result.TotalLatency += stage2.LatencyMS
+
+	if err != nil {
+		slog.InfoContext(ctx, "extract_only stage2 failed",
+			slog.String("rule_type", ruleType),
+			slog.String("error", err.Error()),
+		)
+		result.RulesJSON = "[]"
+		result.Confidence = ConfidenceStatusFail
+		return result
+	}
+
+	// Stage 3: assemble (no LLM call).
+	rulesJSON, constraintResult := assembleRules([]analysisRule{ar}, []json.RawMessage{cfg})
+	result.Stages = append(result.Stages, StageResult{Stage: "assemble"})
+	result.RulesJSON = rulesJSON
+	result.Confidence = constraintResult.Status
+
+	slog.InfoContext(ctx, "extract_only done",
+		slog.String("rule_type", ruleType),
+		slog.String("confidence", string(constraintResult.Status)),
+	)
+
+	return result
+}
+
 // analyzePhrase calls the LLM to count and name the rules in phrase.
 func (p *MultiStageParser) analyzePhrase(ctx context.Context, phrase string) (analysisResult, StageResult, error) {
 	start := time.Now()

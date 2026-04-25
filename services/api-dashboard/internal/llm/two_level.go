@@ -10,15 +10,18 @@ import (
 type Route string
 
 const (
-	// RouteMicroEarlyFail means the micro-classifier detected gibberish with
+	// RouteMicroEarlyFail means the micro-classifier detected an invalid phrase with
 	// sufficient margin and the LLM was not called.
 	RouteMicroEarlyFail Route = "micro_early_fail"
-	// RouteLLMDirect means the micro-classifier was confident the phrase is valid
-	// and the LLM was called without an additional self-check.
+	// RouteLLMDirect is kept for backward compatibility but is no longer produced
+	// by this version of the router (dead code — left for minimal diff).
 	RouteLLMDirect Route = "llm_direct"
 	// RouteLLMWithCheck means the phrase was ambiguous or low-margin, so the LLM
 	// was called and a self-check was run on the result.
 	RouteLLMWithCheck Route = "llm_with_check"
+	// RouteMicroAnswer means the micro-classifier was confident about the rule type,
+	// so only ExtractOnly (1 LLM call) was used — no analyze stage, no self-check.
+	RouteMicroAnswer Route = "micro_answer"
 )
 
 // TwoLevelResult is the outcome of TwoLevelParser.Parse.
@@ -43,19 +46,22 @@ type TwoLevelResult struct {
 //  1. MicroClassifier — cheap intent gate (embedding-based).
 //  2. MultiStageParser — full LLM parse (only when needed).
 type TwoLevelParser struct {
-	micro       MicroClassifier
-	llm         *MultiStageParser
-	marginFloor float64
+	micro         MicroClassifier
+	llm           *MultiStageParser
+	marginFloor   float64
+	ruleTypeFloor float64
 }
 
 // NewTwoLevelParser creates a TwoLevelParser.
-// marginFloor is the minimum cosine-margin required to trust the micro result;
-// phrases below this threshold are routed to LLMWithCheck.
-func NewTwoLevelParser(micro MicroClassifier, llm *MultiStageParser, marginFloor float64) *TwoLevelParser {
+// marginFloor is the minimum cosine-margin to trust an invalid/ambiguous gate decision.
+// ruleTypeFloor is the higher threshold required to trust a specific rule-type prediction
+// and take the RouteMicroAnswer path (extract-only, 1 LLM call, no self-check).
+func NewTwoLevelParser(micro MicroClassifier, llm *MultiStageParser, marginFloor, ruleTypeFloor float64) *TwoLevelParser {
 	return &TwoLevelParser{
-		micro:       micro,
-		llm:         llm,
-		marginFloor: marginFloor,
+		micro:         micro,
+		llm:           llm,
+		marginFloor:   marginFloor,
+		ruleTypeFloor: ruleTypeFloor,
 	}
 }
 
@@ -77,8 +83,16 @@ func (p *TwoLevelParser) Parse(ctx context.Context, phrase string) (TwoLevelResu
 	)
 
 	// Routing logic.
-	if micro.Intent == IntentGibberish && micro.Margin >= p.marginFloor {
-		// Early FAIL: do not call LLM.
+	//
+	// Table:
+	//   invalid  + margin≥marginFloor → RouteMicroEarlyFail (no LLM)
+	//   invalid  + margin<marginFloor → RouteLLMWithCheck
+	//   ambiguous (any margin)        → RouteLLMWithCheck
+	//   {rule-type} + margin≥ruleTypeFloor → RouteMicroAnswer (ExtractOnly, 1 LLM call)
+	//   {rule-type} + margin<ruleTypeFloor → RouteLLMWithCheck
+
+	if micro.Intent == IntentInvalid && micro.Margin >= p.marginFloor {
+		// Early FAIL: micro is confident this is invalid — do not call LLM.
 		totalMS := float64(time.Since(start).Milliseconds())
 		slog.InfoContext(ctx, "two_level early fail",
 			slog.Float64("margin", micro.Margin),
@@ -95,27 +109,47 @@ func (p *TwoLevelParser) Parse(ctx context.Context, phrase string) (TwoLevelResu
 		}, nil
 	}
 
-	// Determine route before LLM call.
-	needsCheck := micro.Intent == IntentAmbiguous || micro.Margin < p.marginFloor
-	route := RouteLLMDirect
-	if needsCheck {
-		route = RouteLLMWithCheck
+	// Check whether this is a rule-type intent (not invalid/ambiguous).
+	isRuleType := micro.Intent == IntentBlocklist ||
+		micro.Intent == IntentAllowlist ||
+		micro.Intent == IntentGeoFilter ||
+		micro.Intent == IntentPlatformFilter ||
+		micro.Intent == IntentFrequencyCap
+
+	if isRuleType && micro.Margin >= p.ruleTypeFloor {
+		// MicroAnswer: micro is confident about the rule type — skip analyze,
+		// call ExtractOnly (1 LLM call), no self-check.
+		llmResult := p.llm.ExtractOnly(ctx, phrase, string(micro.Intent))
+
+		slog.InfoContext(ctx, "two_level micro_answer done",
+			slog.String("intent", string(micro.Intent)),
+			slog.String("confidence", string(llmResult.Confidence)),
+		)
+
+		totalMS := float64(time.Since(start).Milliseconds())
+		return TwoLevelResult{
+			RulesJSON:    llmResult.RulesJSON,
+			Confidence:   llmResult.Confidence,
+			Route:        RouteMicroAnswer,
+			Micro:        micro,
+			LLM:          &llmResult,
+			TotalLatency: totalMS,
+			UsedLLM:      true,
+		}, nil
 	}
 
-	// Level 2: multi-stage LLM parse.
+	// All remaining cases → full multi-stage LLM parse with self-check.
 	llmResult := p.llm.Parse(ctx, phrase)
 
 	slog.InfoContext(ctx, "two_level llm done",
-		slog.String("route", string(route)),
+		slog.String("route", string(RouteLLMWithCheck)),
 		slog.String("confidence", string(llmResult.Confidence)),
 	)
 
 	finalConfidence := llmResult.Confidence
 
-	// For LLMWithCheck, run a lightweight self-check annotation.
-	// We run the self-check verify call (call 2 only) against the already-parsed rules JSON.
-	// If the self-check disagrees (NO), downgrade OK → UNSURE.
-	if route == RouteLLMWithCheck && llmResult.Confidence == ConfidenceStatusOK && llmResult.RulesJSON != "" {
+	// Run a lightweight self-check: if it disagrees (NO), downgrade OK → UNSURE.
+	if llmResult.Confidence == ConfidenceStatusOK && llmResult.RulesJSON != "" {
 		_, scr := CheckSelfCheck(ctx, p.llm.client, phrase)
 		slog.InfoContext(ctx, "two_level self_check done",
 			slog.String("self_check_status", string(scr.Status)),
@@ -129,7 +163,7 @@ func (p *TwoLevelParser) Parse(ctx context.Context, phrase string) (TwoLevelResu
 	return TwoLevelResult{
 		RulesJSON:    llmResult.RulesJSON,
 		Confidence:   finalConfidence,
-		Route:        route,
+		Route:        RouteLLMWithCheck,
 		Micro:        micro,
 		LLM:          &llmResult,
 		TotalLatency: totalMS,

@@ -12,12 +12,20 @@ import (
 type Intent string
 
 const (
-	// IntentValid means the phrase is parseable into a PublisherRule.
-	IntentValid Intent = "valid"
+	// IntentBlocklist means the phrase describes a blocklist rule.
+	IntentBlocklist Intent = "blocklist"
+	// IntentAllowlist means the phrase describes an allowlist rule.
+	IntentAllowlist Intent = "allowlist"
+	// IntentGeoFilter means the phrase describes a geo_filter rule.
+	IntentGeoFilter Intent = "geo_filter"
+	// IntentPlatformFilter means the phrase describes a platform_filter rule.
+	IntentPlatformFilter Intent = "platform_filter"
+	// IntentFrequencyCap means the phrase describes a frequency_cap rule.
+	IntentFrequencyCap Intent = "frequency_cap"
 	// IntentAmbiguous means the phrase is partially expressible or has unclear scope.
 	IntentAmbiguous Intent = "ambiguous"
-	// IntentGibberish means the phrase is nonsense, out-of-scope, or contradictory.
-	IntentGibberish Intent = "gibberish"
+	// IntentInvalid means the phrase is nonsense, out-of-scope, or contradictory.
+	IntentInvalid Intent = "invalid"
 )
 
 // MicroResult is the outcome of a MicroClassifier.Classify call.

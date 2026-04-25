@@ -58,11 +58,7 @@ func TestMicroFirstBenchmark(t *testing.T) {
 	chatClient := llm.NewOpenAIClient(apiKey, "gpt-4o-mini")
 	embedClient := llm.NewOpenAIEmbedClient(apiKey, "text-embedding-3-small")
 
-	// Margin floor — tunable via MARGIN_FLOOR env (default 0.02, tuned from
-	// initial 0.05 after comparing report_microfirst_margin0050.md vs
-	// report_microfirst_margin0020.md — the lower threshold routes the
-	// self-contradicting "Block and allow gambling" phrase to micro_early_fail
-	// without LLM, reducing total LLM calls by 8% and raising accuracy to 83%).
+	// Margin floor — tunable via MARGIN_FLOOR env (default 0.02).
 	marginFloor := 0.02
 	if raw := os.Getenv("MARGIN_FLOOR"); raw != "" {
 		v, err := strconv.ParseFloat(raw, 64)
@@ -73,10 +69,23 @@ func TestMicroFirstBenchmark(t *testing.T) {
 	}
 	t.Logf("using marginFloor=%.3f", marginFloor)
 
+	// Rule-type floor — tunable via RULE_TYPE_FLOOR env (default 0.05).
+	// Higher than marginFloor: demands more confidence before trusting micro's
+	// specific rule-type prediction on the RouteMicroAnswer path.
+	ruleTypeFloor := 0.05
+	if raw := os.Getenv("RULE_TYPE_FLOOR"); raw != "" {
+		v, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			t.Fatalf("invalid RULE_TYPE_FLOOR=%q: %v", raw, err)
+		}
+		ruleTypeFloor = v
+	}
+	t.Logf("using ruleTypeFloor=%.3f", ruleTypeFloor)
+
 	// Build parsers.
 	baseline := llm.NewMultiStageParser(chatClient)
 	micro := llm.NewEmbedMicro(embedClient, prototypes)
-	twoLevel := llm.NewTwoLevelParser(micro, llm.NewMultiStageParser(chatClient), marginFloor)
+	twoLevel := llm.NewTwoLevelParser(micro, llm.NewMultiStageParser(chatClient), marginFloor, ruleTypeFloor)
 
 	rows := make([]microRow, 0, len(corpus))
 
@@ -160,10 +169,15 @@ func TestMicroFirstBenchmark(t *testing.T) {
 	}
 
 	// Print console summary.
-	fmt.Printf("\n=== Micro-First Benchmark: corpus=%d phrases ===\n\n", total)
+	fmt.Printf("\n=== Micro-First Benchmark (A2): corpus=%d phrases ===\n\n", total)
+	fmt.Printf("marginFloor=%.3f  ruleTypeFloor=%.3f\n\n", marginFloor, ruleTypeFloor)
 	fmt.Printf("LLM calls — baseline: %d, two-level: %d, saved: %.1f%%\n\n", baselineLLMTotal, twoLevelLLMTotal, llmSavedPct)
+	noFull := routeCounts[llm.RouteMicroEarlyFail] + routeCounts[llm.RouteMicroAnswer]
+	fmt.Printf("%% without full pipeline (micro_early_fail+micro_answer): %d/%d (%.1f%%)\n\n",
+		noFull, total, 100*float64(noFull)/float64(total))
 	fmt.Printf("Route distribution:\n")
-	for route, count := range routeCounts {
+	for _, route := range []llm.Route{llm.RouteMicroEarlyFail, llm.RouteMicroAnswer, llm.RouteLLMWithCheck, llm.RouteLLMDirect} {
+		count := routeCounts[route]
 		fmt.Printf("  %-20s %d (%.0f%%)\n", route, count, 100*float64(count)/float64(total))
 	}
 	fmt.Printf("\nAccuracy vs expected_confidence:\n")
@@ -172,7 +186,7 @@ func TestMicroFirstBenchmark(t *testing.T) {
 
 	writeMicroFirstReport(t, rows, total, baselineLLMTotal, twoLevelLLMTotal, llmSavedPct,
 		routeCounts, baselineConfCounts, twoLevelConfCounts,
-		accuracyBaseOK, accuracyTwoOK, marginFloor)
+		accuracyBaseOK, accuracyTwoOK, marginFloor, ruleTypeFloor)
 }
 
 // loadPrototypes reads prototypes.json from the finetune data directory.
@@ -200,7 +214,7 @@ func loadPrototypes(t *testing.T) map[llm.Intent][]float32 {
 	return result
 }
 
-// writeMicroFirstReport writes the per-phrase table and summary to report_microfirst.md.
+// writeMicroFirstReport writes the per-phrase table and summary to report_microfirst_a2_margin{floor}_rtf{rtf}.md.
 func writeMicroFirstReport(
 	t *testing.T,
 	rows []microRow,
@@ -209,7 +223,7 @@ func writeMicroFirstReport(
 	routeCounts map[llm.Route]int,
 	baselineConf, twoLevelConf map[llm.ConfidenceStatus]int,
 	accBase, accTwo int,
-	marginFloor float64,
+	marginFloor, ruleTypeFloor float64,
 ) {
 	t.Helper()
 
@@ -221,13 +235,15 @@ func writeMicroFirstReport(
 		return
 	}
 	floorTag := strings.ReplaceAll(fmt.Sprintf("%.3f", marginFloor), ".", "")
-	outPath := filepath.Join(resultsDir, fmt.Sprintf("report_microfirst_margin%s.md", floorTag))
+	rtfTag := strings.ReplaceAll(fmt.Sprintf("%.3f", ruleTypeFloor), ".", "")
+	outPath := filepath.Join(resultsDir, fmt.Sprintf("report_microfirst_a2_margin%s_rtf%s.md", floorTag, rtfTag))
 
 	var sb strings.Builder
-	sb.WriteString("# Micro-First Benchmark Report\n\n")
+	sb.WriteString("# Micro-First Benchmark Report (A2)\n\n")
 	sb.WriteString(fmt.Sprintf("**Date**: %s  \n", time.Now().Format("2006-01-02")))
 	sb.WriteString(fmt.Sprintf("**Corpus**: %d phrases  \n", total))
-	sb.WriteString(fmt.Sprintf("**Margin floor**: %.3f\n\n", marginFloor))
+	sb.WriteString(fmt.Sprintf("**Margin floor**: %.3f  \n", marginFloor))
+	sb.WriteString(fmt.Sprintf("**Rule-type floor**: %.3f\n\n", ruleTypeFloor))
 
 	sb.WriteString("## Per-Phrase Results\n\n")
 	sb.WriteString("| # | Phrase | Group | Expected | Micro Intent | Margin | Route | Baseline Conf | Two-Level Conf | Baseline ms | Two-Level ms | Baseline LLM | TwoLevel LLM |\n")
@@ -258,10 +274,24 @@ func writeMicroFirstReport(
 	sb.WriteString("\n## Summary\n\n")
 	sb.WriteString(fmt.Sprintf("**LLM calls saved**: %d → %d (%.1f%% reduction)\n\n", baselineLLM, twoLevelLLM, llmSavedPct))
 
+	// % handled without full pipeline = micro_early_fail + micro_answer.
+	noFullPipeline := routeCounts[llm.RouteMicroEarlyFail] + routeCounts[llm.RouteMicroAnswer]
+	noFullPipelinePct := 0.0
+	if total > 0 {
+		noFullPipelinePct = 100 * float64(noFullPipeline) / float64(total)
+	}
+	sb.WriteString(fmt.Sprintf("**%% handled without full pipeline** (micro_early_fail + micro_answer): %d/%d (%.1f%%)\n\n",
+		noFullPipeline, total, noFullPipelinePct))
+
 	sb.WriteString("### Route Distribution\n\n")
 	sb.WriteString("| Route | Count | % |\n")
 	sb.WriteString("|-------|-------|---|\n")
-	for _, route := range []llm.Route{llm.RouteMicroEarlyFail, llm.RouteLLMDirect, llm.RouteLLMWithCheck} {
+	for _, route := range []llm.Route{
+		llm.RouteMicroEarlyFail,
+		llm.RouteMicroAnswer,
+		llm.RouteLLMWithCheck,
+		llm.RouteLLMDirect,
+	} {
 		count := routeCounts[route]
 		sb.WriteString(fmt.Sprintf("| %s | %d | %.0f%% |\n", route, count, 100*float64(count)/float64(total)))
 	}
@@ -278,7 +308,7 @@ func writeMicroFirstReport(
 	sb.WriteString("|--------|---------|-------|----------|\n")
 	sb.WriteString(fmt.Sprintf("| Baseline (MultiStage) | %d | %d | %.0f%% |\n",
 		accBase, total, 100*float64(accBase)/float64(total)))
-	sb.WriteString(fmt.Sprintf("| Two-Level (MicroFirst) | %d | %d | %.0f%% |\n",
+	sb.WriteString(fmt.Sprintf("| Two-Level (MicroFirst A2) | %d | %d | %.0f%% |\n",
 		accTwo, total, 100*float64(accTwo)/float64(total)))
 
 	if err := os.WriteFile(outPath, []byte(sb.String()), 0644); err != nil {
