@@ -136,7 +136,7 @@ func (s *RuleParserService) plainParse(ctx context.Context, phrase string) (stri
 		Temperature: 0,
 		Messages: []llm.Message{
 			{Role: llm.RoleSystem, Content: llm.SystemPrompt},
-			{Role: llm.RoleUser, Content: phrase},
+			{Role: llm.RoleUser, Content: llm.WrapPhrase(phrase)},
 		},
 	})
 	if err != nil {
